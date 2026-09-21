@@ -1,6 +1,6 @@
 # Feature Specification: MCP Policy Gateway v0.1
 
-**Feature Branch**: `master`
+**Feature Branch**: `feat/mcp-policy-gateway-v0.1`
 
 **Created**: 2026-09-20
 
@@ -305,9 +305,8 @@ assurance are deferred beyond v0.1.
 - **SC-001**: Across the protocol conformance suite, 100% of `ALLOW` cases reach the
   fake upstream exactly once with an unchanged invocation and return its unchanged
   result or protocol error.
-- **SC-002**: Across the conformance suite and a stress run of at least 10,000
-  denied or review-required calls, zero `DENY` or `REVIEW` calls reach the fake
-  upstream server.
+- **SC-002**: Across representative single-call and concurrent conformance cases,
+  zero `DENY` or `REVIEW` calls reach the fake upstream server.
 - **SC-003**: In 100% of labelled conflict cases, decisive hard-rule outcomes match
   the final policy outcomes regardless of semantic-provider judgments.
 - **SC-004**: 100% of intercepted conformance cases produce one correlated audit
@@ -319,9 +318,11 @@ assurance are deferred beyond v0.1.
 - **SC-006**: Every benchmark mode reports case counts, errors, forwarding accuracy,
   policy accuracy, and p50, p95, and p99 provider and total decision latency using
   the same dataset and configuration identity.
-- **SC-007**: On the versioned labelled evaluation dataset, the Jev mode achieves
-  macro F1 of at least 0.80 across the six typed judgment categories, with at least
-  30 positive and 30 negative examples available for each reported category.
+- **SC-007**: On the versioned labelled evaluation dataset, the Jev mode reports
+  macro F1 across the six typed judgment categories using positive and negative
+  examples for each category. A macro F1 of 0.80 is a research target, not a
+  release gate; lower performance MUST be reported as an experimental result
+  rather than treated as a software-release failure.
 - **SC-008**: 100% of core proxy, deterministic-policy, failure, sanitization, and
   audit conformance tests run successfully without TypeSafe credentials or network
   access to a semantic provider.

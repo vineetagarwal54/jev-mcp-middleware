@@ -82,10 +82,10 @@ network access. The run includes:
 npm run test:integration -- tests/integration/gateway-non-forwarding.test.ts
 ```
 
-Expected outcome: the fake upstream receives zero calls for at least 10,000 denied
-or review-required invocations, including concurrent calls and provider failures.
-The test fails on any upstream invocation rather than inferring safety from the
-downstream response.
+Expected outcome: the fake upstream receives zero calls for representative denied
+and review-required invocations, including a small concurrent set and a provider
+failure. The test fails on any upstream invocation rather than inferring safety
+from the downstream response.
 
 ## 5. Validate Audit Persistence
 

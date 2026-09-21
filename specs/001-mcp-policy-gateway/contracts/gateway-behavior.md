@@ -92,8 +92,8 @@ contain tool arguments, provider response text, configuration, or raw exceptions
 The only code path with access to `UpstreamMcpClient.callTool` is the explicit
 `ALLOW` branch after a `PolicyDecision` has been produced. Integration tests use a
 fake upstream invocation counter and cover hard denial, semantic denial, review,
-validation denial, provider failure mapped to denial/review, concurrency, and
-10,000-call stress cases. Every one must observe zero upstream calls.
+validation denial, provider failure mapped to denial/review, and a small
+representative concurrent set. Every case must observe zero upstream calls.
 
 ## Stdout and Logging
 

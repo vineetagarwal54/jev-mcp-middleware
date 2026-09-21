@@ -1,353 +1,222 @@
 # Tasks: MCP Policy Gateway v0.1
 
-**Input**: Design documents from `specs/001-mcp-policy-gateway/`
+**Input**: Design artifacts in `specs/001-mcp-policy-gateway/`
 
-**Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`,
-`contracts/`, and `quickstart.md`
+**Goal**: Deliver a real, portfolio-quality v0.1 in a few focused coding sessions.
+Tests concentrate on observable behavior and critical boundaries rather than
+duplicating third-party SDK or implementation-detail coverage.
 
-**Tests**: Tests are required by the specification and constitution. Write each
-phase's tests first, observe the relevant failure, then implement. Every phase ends
-with passing relevant tests and the full TypeScript typecheck before continuation.
+**Phase gate**: Every phase must pass its relevant tests and full TypeScript
+typecheck before the next phase begins.
 
-**Organization**: Tasks are grouped by user story. Every task includes an exact
-file path and user-story tasks carry their story label.
+## Phase 1: Setup
 
-## Phase 1: Setup (Shared Infrastructure)
+**Purpose**: Establish a strict, reproducible single-package TypeScript project.
 
-**Purpose**: Establish the Node.js 24, strict TypeScript, test, lint, container,
-and package foundation without implementing feature behavior.
+- [ ] T001 Initialize Node.js 24 ESM dependencies, scripts, package metadata, and the lockfile in `package.json` and `package-lock.json`
+- [ ] T002 [P] Configure strict `NodeNext` TypeScript and focused lint rules in `tsconfig.json` and `eslint.config.js`
+- [ ] T003 [P] Configure Vitest for unit and integration suites in `vitest.config.ts`
+- [ ] T004 [P] Ignore build output, local YAML, SQLite files, benchmark results, coverage, and secrets in `.gitignore`
+- [ ] T005 Run install, lint, typecheck, test discovery, and build scripts from `package.json`; fix all setup failures before Phase 2
 
-- [ ] T001 Initialize the Node.js 24 ESM package, exact runtime dependencies, development dependencies, scripts, and lockfile in `package.json` and `package-lock.json`
-- [ ] T002 [P] Configure strict `NodeNext` compilation, declaration output, source maps, and required strictness flags in `tsconfig.json`
-- [ ] T003 [P] Configure TypeScript-aware linting and prohibited unsafe boundary patterns in `eslint.config.js`
-- [ ] T004 [P] Configure isolated Vitest projects for unit, contract, integration, and benchmark tests in `vitest.config.ts`
-- [ ] T005 [P] Ignore build output, coverage, local configuration, SQLite files, benchmark results, and secrets while preserving examples in `.gitignore`
-- [ ] T006 [P] Add a Node 24 Debian-slim multi-stage non-root image and build context exclusions in `Dockerfile` and `.dockerignore`
-- [ ] T007 Run the setup lint, typecheck, test discovery, and build scripts defined in `package.json`; fix all failures before Phase 2
-
-**Checkpoint**: Package installation is lockfile-reproducible and the empty project
-passes lint, typecheck, test discovery, and build.
+**Checkpoint**: The empty project builds and all static gates pass.
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundation
 
-**Purpose**: Build shared configuration, logging, audit persistence, provider
-contracts, and keyless fixtures required by every user story.
-
-**CRITICAL**: No user-story implementation begins until this phase passes its gate.
+**Purpose**: Add only the shared boundaries needed by every user story.
 
 ### Tests First
 
-- [ ] T008 [P] Write failing strict-YAML, unknown-key, threshold, hard-rule, path-resolution, and secret-exclusion tests in `tests/unit/config/config.test.ts`
-- [ ] T009 [P] Write failing stderr-destination, child-correlation, and defense-in-depth redaction tests in `tests/unit/logging/logger.test.ts`
-- [ ] T010 [P] Write failing schema-validation tests for the canonical audit event contract in `tests/contract/audit-event.test.ts`
-- [ ] T011 [P] Write failing migration, prepared-insert, uniqueness, WAL/reopen, and observable-write-failure tests in `tests/unit/audit/AuditRepository.test.ts`
-- [ ] T012 [P] Write failing interface-invariant and scripted mock-provider tests in `tests/contract/decision-provider.test.ts`
+- [ ] T006 [P] Write focused tests for valid/invalid YAML configuration and scripted MockDecisionProvider behavior in `tests/unit/config/config.test.ts` and `tests/unit/decision/MockDecisionProvider.test.ts`
+- [ ] T007 [P] Write a SQLite repository smoke test covering migration, one insert, one read, and an observable insert failure in `tests/unit/audit/AuditRepository.test.ts`
 
 ### Shared Implementation
 
-- [ ] T013 Implement strict Zod configuration types, defaults, enums, thresholds, hard-rule predicates, and cross-field refinements in `src/config/schema.ts`
-- [ ] T014 Implement bounded single-document YAML parsing, relative-path normalization, non-secret configuration hashing, and startup errors in `src/config/loadConfig.ts`
-- [ ] T015 Add a complete non-secret operator example matching the configuration contract in `config/example.yaml`
-- [ ] T016 [P] Implement the stderr-only Pino logger, fixed redaction removal paths, and correlation child loggers in `src/logging/logger.ts`
-- [ ] T017 [P] Implement JSON value, risk signal, provider status, and provider evaluation runtime schemas/types in `src/decision/types.ts`
-- [ ] T018 Define the focused abort-aware `DecisionProvider` interface in `src/decision/DecisionProvider.ts`
-- [ ] T019 Implement the isolated scripted and call-recording `MockDecisionProvider` in `src/decision/MockDecisionProvider.ts`
-- [ ] T020 [P] Define final outcomes, hard-rule records, policy sources, reason codes, decisions, and upstream outcome types in `src/policy/types.ts`
-- [ ] T021 Implement strict AuditEvent v1 schemas/types that reject prohibited and unknown fields in `src/audit/AuditEvent.ts`
-- [ ] T022 Add the checksummed initial `audit_events` and `schema_migrations` schema with required indexes in `migrations/001-create-audit-events.sql`
-- [ ] T023 Implement ordered atomic SQLite migrations, WAL, foreign keys, and bounded busy-timeout setup in `src/audit/migrations.ts`
-- [ ] T024 Implement prepared audit inserts and test-only query helpers without leaking driver types in `src/audit/AuditRepository.ts`
-- [ ] T025 Implement canonical event validation, exactly-once insert attempts, and sanitized persistence-failure reporting in `src/audit/auditService.ts`
-- [ ] T026 [P] Add deterministic clocks, UUID sources, temporary database helpers, and validated test configuration builders in `tests/fixtures/testConfig.ts`
-- [ ] T027 [P] Implement a controllable official-SDK fake upstream MCP server with catalog pagination, invocation recording, results, errors, delays, and disconnects in `tests/fixtures/fakeMcpServer.ts`
-- [ ] T028 Run all foundational tests plus lint and full typecheck through scripts in `package.json`; fix every failure before Phase 3
+- [ ] T008 Implement strict Zod configuration parsing, explicit failure defaults, non-secret environment resolution, and the sample YAML in `src/config/schema.ts`, `src/config/loadConfig.ts`, and `config/example.yaml`
+- [ ] T009 [P] Define provider inputs, six advisory signals, provider failures, the DecisionProvider interface, and a scripted MockDecisionProvider in `src/decision/types.ts`, `src/decision/DecisionProvider.ts`, and `src/decision/MockDecisionProvider.ts`
+- [ ] T010 [P] Configure Pino JSON logging to stderr with correlation IDs and basic credential-field removal in `src/logging/logger.ts`
+- [ ] T011 Implement one initial SQLite audit table, a small prepared-statement repository, and basic audit event/service types in `migrations/001-create-audit-events.sql`, `src/audit/AuditRepository.ts`, `src/audit/AuditEvent.ts`, and `src/audit/auditService.ts`
+- [ ] T012 [P] Implement a fake official-SDK upstream MCP server with a fixed tool catalog, invocation counter, configurable result, and configurable error in `tests/fixtures/fakeMcpServer.ts`
+- [ ] T013 Run the foundation tests, lint, and full typecheck through `package.json`; fix all failures before Phase 3
 
-**Checkpoint**: Configuration, logging, audit storage, provider contracts, and
-keyless fixtures pass independently with no external service or credential.
+**Checkpoint**: Configuration, mock decisions, audit persistence, logging, and the
+fake upstream work without TypeSafe credentials.
 
 ---
 
-## Phase 3: User Story 1 - Use Upstream Tools Through the Gateway (Priority: P1)
+## Phase 3: User Story 1 - Transparent MCP Proxy (Priority: P1)
 
-**Goal**: An MCP host can list one upstream server's frozen tool catalog and an
-allowed call reaches that upstream exactly once with unchanged name, arguments,
-result, and tool error behavior.
+**Goal**: An MCP host can list upstream tools and an allowed call is forwarded
+once with unchanged tool name, arguments, and result.
 
-**Independent Test**: Connect an official-SDK test client to the gateway and fake
-upstream, list tools, invoke an allowed tool, and assert the fake server received
-one identical invocation and the client received the unchanged result or error.
+**Independent Test**: Connect a test MCP client to the gateway and fake upstream,
+list tools, make a valid call, and verify one identical upstream invocation and the
+unchanged result; also reject one representative invalid argument payload.
 
 ### Tests for User Story 1
 
-- [ ] T029 [P] [US1] Write failing contract tests for paginated catalog preservation and unchanged allowed results/tool errors in `tests/contract/gateway-results.test.ts`
-- [ ] T030 [P] [US1] Write a failing end-to-end allowed-call test with the fake upstream and SQLite audit database in `tests/integration/gateway-allow.test.ts`
-- [ ] T031 [P] [US1] Write a failing subprocess stdio negotiation, protocol-only stdout, graceful shutdown, and stderr logging test in `tests/integration/gateway-stdio.test.ts`
-- [ ] T032 [P] [US1] Write failing upstream connect, pagination, timeout, abort, close, and protocol/transport error tests in `tests/unit/mcp/upstreamClient.test.ts`
-- [ ] T033 [P] [US1] Write failing duplicate-name, deterministic-order, schema-compile, unknown-tool, and argument-validation tests in `tests/unit/mcp/toolCatalog.test.ts`
-- [ ] T034 [P] [US1] Write failing no-provider default-outcome and deterministic reason-code tests in `tests/unit/policy/policyEngine.test.ts`
+- [ ] T014 [US1] Write one high-value proxy integration test for `tools/list`, allowed `tools/call`, unchanged results, upstream errors, and basic argument validation in `tests/integration/gateway-proxy.test.ts`
+- [ ] T015 [P] [US1] Write one end-to-end subprocess stdio test proving host-to-gateway-to-upstream flow and protocol-only stdout in `tests/integration/gateway-stdio.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T035 [US1] Construct official SDK downstream and upstream stdio transports without a custom transport hierarchy in `src/mcp/transportFactories.ts`
-- [ ] T036 [US1] Implement upstream lifecycle, complete catalog pagination, timeout/abort propagation, unchanged `callTool`, and explicit close behavior in `src/mcp/upstreamClient.ts`
-- [ ] T037 [P] [US1] Implement immutable catalog snapshotting and cached Ajv argument validators in `src/mcp/toolCatalog.ts`
-- [ ] T038 [P] [US1] Implement the deterministic no-provider outcome path and stable reason codes in `src/policy/policyEngine.ts`
-- [ ] T039 [US1] Implement the validated allowed-call pipeline and upstream outcome mapping in `src/mcp/router.ts`
-- [ ] T040 [US1] Register low-level `tools/list` and `tools/call` handlers and preserve upstream result objects in `src/mcp/gatewayServer.ts`
-- [ ] T041 [US1] Compose validated config, logger, SQLite audit, upstream client, router, downstream server, signals, and shutdown in `src/index.ts`
-- [ ] T042 [US1] Run the US1 unit, contract, integration, and subprocess suites plus full typecheck using `package.json`; fix all failures before Phase 4
+- [ ] T016 [US1] Construct official SDK stdio transports and implement upstream connect, list, call, and close behavior in `src/mcp/transportFactories.ts` and `src/mcp/upstreamClient.ts`
+- [ ] T017 [P] [US1] Snapshot the upstream catalog and compile basic Ajv argument validators in `src/mcp/toolCatalog.ts`
+- [ ] T018 [US1] Implement the initial validated ALLOW route and upstream outcome capture in `src/mcp/router.ts`
+- [ ] T019 [US1] Expose low-level `tools/list` and `tools/call` handlers while preserving upstream results in `src/mcp/gatewayServer.ts`
+- [ ] T020 [US1] Compose configuration, logging, audit persistence, upstream client, router, stdio server, and shutdown handling in `src/index.ts`
+- [ ] T021 [US1] Run the proxy and stdio integration tests plus lint and full typecheck through `package.json`; fix all failures before Phase 4
 
-**Checkpoint**: User Story 1 is a demonstrable transparent, auditable allowed-call
-gateway increment. It is not yet the minimum policy-enforcing v0.1 release.
+**Checkpoint**: A real transparent MCP proxy works end to end.
 
 ---
 
-## Phase 4: User Story 2 - Stop or Flag Risky Tool Calls (Priority: P1)
+## Phase 4: User Story 2 - Deterministic Policy and Non-Forwarding (Priority: P1)
 
-**Goal**: Every valid invocation receives a deterministic outcome; hard rules win,
-provider failures use configured behavior, and `REVIEW`/`DENY` can never dispatch
-upstream.
+**Goal**: Deterministic code owns `ALLOW`, `REVIEW`, and `DENY`; hard rules win;
+provider failure is explicit; `REVIEW` and `DENY` never reach upstream.
 
-**Independent Test**: Run hard-rule conflicts, semantic threshold cases, every
-provider failure mode, concurrent calls, and 10,000 denied/reviewed calls against
-the fake upstream; assert exact outcomes and zero upstream invocations.
+**Independent Test**: Exercise representative hard-rule, semantic-threshold, and
+provider-failure decisions with a mock provider, then verify the fake upstream sees
+zero reviewed/denied calls, including a small concurrent set.
 
 ### Tests for User Story 2
 
-- [ ] T043 [P] [US2] Write failing exact/glob tool matching, JSON Pointer predicate, multi-rule precedence, and tie-break tests in `tests/unit/policy/hardRules.test.ts`
-- [ ] T044 [P] [US2] Extend failing policy tests for semantic deny/review thresholds, hard-rule precedence, eligibility, invalid signals, and each configured failure outcome in `tests/unit/policy/policyEngine.test.ts`
-- [ ] T045 [P] [US2] Write failing contract tests for sanitized `DENY`, `REVIEW`, validation, provider-failure, and upstream-failure MCP results in `tests/contract/gateway-results.test.ts`
-- [ ] T046 [P] [US2] Write failing zero-forwarding tests for validation, hard rule, semantic threshold, provider failure, concurrency, retries, and a 10,000-call stress case in `tests/integration/gateway-non-forwarding.test.ts`
-- [ ] T047 [P] [US2] Write failing provider timeout/abort/invalid/partial and upstream protocol/transport/abort mapping tests in `tests/integration/gateway-failures.test.ts`
+- [ ] T022 [P] [US2] Write focused pure unit tests for hard-rule precedence, semantic thresholds, all three outcomes, and configured provider-failure behavior in `tests/unit/policy/policyEngine.test.ts`
+- [ ] T023 [US2] Write one zero-forwarding integration test covering hard DENY, semantic DENY, REVIEW, one provider failure, ALLOW control, and representative concurrent calls in `tests/integration/gateway-policy.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T048 [US2] Implement bounded tool globs, RFC 6901 argument predicates, and deterministic `DENY > REVIEW > ALLOW` rule resolution in `src/policy/hardRules.ts`
-- [ ] T049 [US2] Complete semantic eligibility, hard-rule short-circuiting, threshold aggregation, and explicit provider-failure outcomes in `src/policy/policyEngine.ts`
-- [ ] T050 [P] [US2] Implement closed sanitized gateway result and failure mappings with no raw exception text in `src/mcp/errors.ts`
-- [ ] T051 [US2] Enforce validation, hard-rule, provider, policy, and upstream ordering so only the explicit `ALLOW` branch can call upstream in `src/mcp/router.ts`
-- [ ] T052 [US2] Return contract-compliant non-forwarding `REVIEW` and `DENY` results with namespaced metadata in `src/mcp/gatewayServer.ts`
-- [ ] T053 [US2] Run all US2 tests, the 10,000-call non-forwarding stress case, regression tests, lint, and full typecheck through `package.json`; fix every failure before Phase 5
+- [ ] T024 [US2] Define policy inputs, outcomes, reason codes, and simple deterministic hard-rule matching in `src/policy/types.ts` and `src/policy/hardRules.ts`
+- [ ] T025 [US2] Implement hard-rule precedence, semantic thresholds, eligibility, and explicit provider-failure outcomes in `src/policy/policyEngine.ts`
+- [ ] T026 [P] [US2] Implement sanitized protocol-compatible validation, REVIEW, DENY, provider-failure, and upstream-failure results in `src/mcp/errors.ts`
+- [ ] T027 [US2] Enforce routing order so only an explicit ALLOW decision can invoke upstream in `src/mcp/router.ts`
+- [ ] T028 [US2] Return contract-compliant REVIEW and DENY results from the downstream handler in `src/mcp/gatewayServer.ts`
+- [ ] T029 [US2] Run policy unit tests, the zero-forwarding integration test, prior proxy tests, lint, and full typecheck through `package.json`; fix all failures before Phase 5
 
-**Checkpoint**: User Stories 1 and 2 provide the deterministic enforcement boundary,
-including a measured zero-forwarding guarantee.
+**Checkpoint**: ALLOW, REVIEW, and DENY are proven, and REVIEW/DENY have a strong
+fake-upstream non-forwarding test.
 
 ---
 
-## Phase 5: User Story 3 - Evaluate and Audit Without Leaking Secrets (Priority: P1)
+## Phase 5: User Story 3 - Jev, Sanitization, and Audit (Priority: P1)
 
-**Goal**: Eligible calls can use Jev or a mock provider through one contract, while
-provider state, logs, and SQLite audit events contain only allowlisted sanitized
-data and every terminal call path creates one correlated event.
+**Goal**: Jev supplies advisory signals through the DecisionProvider contract;
+obvious sensitive data is removed before provider calls and audit persistence.
 
-**Independent Test**: Send nested, array, free-text, encoded, header-like,
-credential-like, and environment-like secrets through all outcomes; capture mock/
-Jev requests, stderr logs, and SQLite rows; assert zero prohibited values and all
-required decision/latency fields.
+**Independent Test**: Run representative benign and nested-secret calls with the
+mock provider, capture its input and SQLite audit rows, and verify sanitized input,
+deterministic final decisions, one audit event per call, and keyless execution.
 
 ### Tests for User Story 3
 
-- [ ] T054 [P] [US3] Write failing recursive key/value redaction, bound, immutability, and allowlisted DTO tests with the sensitive corpus in `tests/unit/security/sanitize.test.ts`
-- [ ] T055 [P] [US3] Extend failing provider contract tests for six Noul mappings, Zod response validation, explicit timeout/retry, cancellation, SDK logging-off, and sanitized input in `tests/contract/decision-provider.test.ts`
-- [ ] T056 [P] [US3] Extend failing audit contract tests for provider/policy/upstream summaries, canonical JSON, and prohibited-value rejection in `tests/contract/audit-event.test.ts`
-- [ ] T057 [P] [US3] Write failing exactly-once audit tests across allow, review, deny, validation, provider failure, upstream failure, abort, concurrency, and SQLite failure in `tests/integration/gateway-audit.test.ts`
-- [ ] T058 [P] [US3] Write failing provider-request and log capture tests proving sensitive values never cross semantic or logging boundaries in `tests/integration/gateway-sanitization.test.ts`
-- [ ] T059 [P] [US3] Extend configuration tests for fixed `TYPESAFE_API_KEY` resolution, missing-key startup failure, no YAML key/header fields, and non-secret hashes in `tests/unit/config/config.test.ts`
-- [ ] T060 [P] [US3] Add nested, array, free-text, encoded, header-like, credential-like, and environment-like cases in `tests/fixtures/sensitiveArguments.ts`
+- [ ] T030 [P] [US3] Write pure unit tests for recursive sensitive-key redaction, common credential-value redaction, benign-value preservation, and immutability in `tests/unit/security/sanitize.test.ts`
+- [ ] T031 [US3] Write one integration test covering sanitized mock-provider input, advisory signals, explicit provider failure, and sanitized SQLite audit events in `tests/integration/gateway-semantic-audit.test.ts`
+- [ ] T032 [P] [US3] Write a focused Jev adapter test for six-signal mapping, malformed-response rejection, and sanitized request state using an injected fake TypeSafe client in `tests/unit/decision/JevDecisionProvider.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T061 [US3] Implement fixed sensitive-key and secret-like value detection with bounded replacements in `src/security/redact.ts`
-- [ ] T062 [US3] Implement immutable recursive sanitization and strict `SanitizedDecisionInput` construction in `src/security/sanitize.ts`
-- [ ] T063 [US3] Implement the official TypeSafe client, six atomic Noul questions, explicit timeout/retry/abort, logging disabled, typed error normalization, and Zod result mapping in `src/decision/JevDecisionProvider.ts`
-- [ ] T064 [US3] Resolve the provider-owned TypeSafe key without adding it to normalized config, hashes, or logs in `src/config/loadConfig.ts`
-- [ ] T065 [US3] Complete sanitized provider, policy, latency, and upstream summaries plus canonical persistence in `src/audit/AuditEvent.ts` and `src/audit/auditService.ts`
-- [ ] T066 [US3] Integrate sanitization, provider selection, cancellation, one terminal decision, and one audit creation across every router path in `src/mcp/router.ts`
-- [ ] T067 [US3] Emit sanitized lifecycle/decision summaries and observable audit-write failures without writing protocol bytes outside MCP in `src/logging/logger.ts`
-- [ ] T068 [US3] Add a network-free `test:keyless` script that selects all core suites and rejects accidental Jev access in `package.json`
-- [ ] T069 [US3] Run the keyless suite, US3 integration tests, all prior regressions, lint, and full typecheck through `package.json`; fix every failure before Phase 6
+- [ ] T033 [US3] Implement bounded recursive redaction and the allowlisted provider DTO in `src/security/redact.ts` and `src/security/sanitize.ts`
+- [ ] T034 [US3] Implement JevDecisionProvider with the official TypeSafe SDK, six narrow questions, explicit timeout/retry settings, disabled body logging, and normalized failures in `src/decision/JevDecisionProvider.ts`
+- [ ] T035 [P] [US3] Complete sanitized audit fields for provider result, policy result, latency, and upstream outcome in `src/audit/AuditEvent.ts` and `src/audit/auditService.ts`
+- [ ] T036 [US3] Integrate provider selection, TypeSafe key handling, sanitization, deterministic policy, and exactly one audit attempt into `src/config/loadConfig.ts`, `src/mcp/router.ts`, and `src/index.ts`
+- [ ] T037 [US3] Add and run a network-free keyless suite covering all core tests, then pass lint and full typecheck through `package.json`
 
-**Checkpoint**: User Stories 1 through 3 are the minimum constitution-compliant
-v0.1 gateway core and run fully without TypeSafe credentials.
+**Checkpoint**: The minimum v0.1 gateway core is complete and fully testable
+without a TypeSafe API key.
 
 ---
 
-## Phase 6: User Story 4 - Compare Gateway Decision Modes (Priority: P2)
+## Phase 6: User Story 4 - Comparative Benchmark (Priority: P2)
 
-**Goal**: Researchers can run one labelled dataset through no-semantic-gate,
-deterministic-only, Jev, and future provider modes and compare classification,
-policy, forwarding, error, and latency metrics reproducibly.
+**Goal**: Run a small labelled dataset through no semantic gate, deterministic
+policy, Jev, and an optional compatible provider while reporting quality and
+latency separately from final policy outcomes.
 
-**Independent Test**: Run the same fixed dataset and seed through the two keyless
-modes and a scripted provider, validate every result against the result schema,
-then verify Jev is opt-in and uses the identical contract and dataset.
+**Independent Test**: Run keyless modes on the same fixed dataset and verify the
+report includes predictions, final outcomes, precision, recall, F1, and latency;
+Jev remains an opt-in run using the same provider contract.
 
 ### Tests for User Story 4
 
-- [ ] T070 [P] [US4] Write failing dataset version/hash, duplicate ID, complete-label, secret rejection, balance, and deterministic-order tests in `tests/unit/benchmark/dataset.test.ts`
-- [ ] T071 [P] [US4] Write failing confusion-matrix, precision, recall, F1, macro-F1, policy-accuracy, and percentile edge-case tests in `tests/unit/benchmark/metrics.test.ts`
-- [ ] T072 [P] [US4] Write failing benchmark-result JSON Schema and provider/policy separation tests in `tests/contract/benchmark-result.test.ts`
-- [ ] T073 [P] [US4] Write failing reproducibility and no-network tests for no-semantic-gate, deterministic-only, and scripted-provider modes in `tests/integration/benchmark-modes.test.ts`
-- [ ] T074 [P] [US4] Write an opt-in failing Jev benchmark contract test that skips without credentials and never exposes them in `tests/integration/benchmark-jev.test.ts`
+- [ ] T038 [P] [US4] Write pure unit tests for confusion counts, precision, recall, F1, macro F1, and latency percentile calculations in `tests/unit/benchmark/metrics.test.ts`
+- [ ] T039 [US4] Write one benchmark integration test comparing no-gate, deterministic-only, and scripted-provider modes on the same dataset without network access in `tests/integration/benchmark.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T075 [US4] Implement strict JSONL case loading, schema/secret/balance validation, stable hashing, and seeded ordering in `src/benchmark/dataset.ts`
-- [ ] T076 [P] [US4] Implement classification matrices, per-signal metrics, macro F1, policy accuracy, forwarding counts, and percentile calculations in `src/benchmark/metrics.ts`
-- [ ] T077 [US4] Implement mode selection, shared pipeline execution, runtime/config metadata, sanitized case results, schema validation, and atomic result writes in `src/benchmark/runBenchmark.ts`
-- [ ] T078 [P] [US4] Add deterministic benchmark builders and scripted provider results for tests in `tests/fixtures/benchmarkDataset.ts`
-- [ ] T079 [US4] Curate the synthetic/non-secret six-signal labelled v0.1 corpus with at least 30 positive and 30 negative cases per category in `benchmarks/datasets/v0.1.jsonl`
-- [ ] T080 [US4] Add benchmark scripts and no-semantic, deterministic-only, Jev, and generic-provider CLI options in `package.json`
-- [ ] T081 [US4] Run all US4 tests and keyless modes, validate produced result files, then run lint and full typecheck through `package.json`; fix every failure before final polish
+- [ ] T040 [US4] Implement simple validated dataset loading and add a small synthetic labelled corpus with positive and negative examples for each signal in `src/benchmark/dataset.ts` and `benchmarks/datasets/v0.1.jsonl`
+- [ ] T041 [P] [US4] Implement precision, recall, F1, macro F1, decision accuracy, forwarding counts, and p50/p95/p99 latency summaries in `src/benchmark/metrics.ts`
+- [ ] T042 [US4] Implement benchmark mode selection, shared DecisionProvider execution, result output, Jev opt-in, and an optional provider slot in `src/benchmark/runBenchmark.ts` and `package.json`
+- [ ] T043 [US4] Run the keyless benchmark test and modes plus lint and full typecheck through `package.json`; record Jev quality as a research result rather than a release gate
 
-**Checkpoint**: All four stories work through common contracts; keyless benchmark
-modes are reproducible and Jev evaluation remains explicitly opt-in.
+**Checkpoint**: The project produces a useful, reproducible comparison without
+turning the benchmark harness into a second product.
 
 ---
 
-## Phase 7: Polish & Cross-Cutting Concerns
+## Phase 7: Portfolio and Release Polish
 
-**Purpose**: Complete open-source documentation, CI/container reproducibility,
-security regression coverage, performance evidence, and final scope validation.
+**Purpose**: Make the working v0.1 easy to understand, verify, and run.
 
-- [ ] T082 [P] Document installation, MCP-host configuration, policy/failure semantics, secret boundary, audit operations, benchmarks, and the research-only disclaimer in `README.md`
-- [ ] T083 [P] Add the selected open-source license text and align package metadata in `LICENSE` and `package.json`
-- [ ] T084 [P] Add SHA-pinned GitHub Actions jobs for lockfile install, lint, typecheck, keyless tests, build, and Docker build with minimum permissions in `.github/workflows/ci.yml`
-- [ ] T085 Finalize the digest-pinned multi-stage image, health-free stdio entrypoint, non-root ownership, and mounted `/app/data` behavior in `Dockerfile` and `.dockerignore`
-- [ ] T086 [P] Add regression cases for malformed/oversized inputs, sanitization depth/length limits, concurrent retries, catalog changes, and stdout contamination in `tests/integration/gateway-edge-cases.test.ts`
-- [ ] T087 [P] Add the 10 ms p95 local-overhead check and stable latency-report validation without exact wall-clock assertions in `tests/integration/gateway-performance.test.ts`
-- [ ] T088 Record the nine excluded capabilities, dependency inspection, production-claim review, and constitutional release evidence in `specs/001-mcp-policy-gateway/checklists/release.md`
-- [ ] T089 Execute every scenario in `specs/001-mcp-policy-gateway/quickstart.md` and update only inaccurate commands or expected outcomes in that file
-- [ ] T090 Run lint, full typecheck, all keyless tests, build, benchmark schema validation, and Docker build through `package.json` and `Dockerfile`; do not complete v0.1 while any gate fails
+- [ ] T044 [P] Document setup, MCP-host configuration, policy semantics, failure behavior, secret handling, audit output, benchmarks, limitations, and the research-only disclaimer in `README.md` and add the chosen license in `LICENSE`
+- [ ] T045 [P] Add a minimal GitHub Actions workflow for lockfile install, lint, typecheck, keyless tests, and build in `.github/workflows/ci.yml`
+- [ ] T046 [P] Add a straightforward Node 24 multi-stage image and build exclusions in `Dockerfile` and `.dockerignore`
+- [ ] T047 Execute the documented keyless quickstart, build the Docker image, run all tests/lint/typecheck/build, and correct only inaccurate validation instructions in `specs/001-mcp-policy-gateway/quickstart.md`, `package.json`, and `Dockerfile`
 
-**Checkpoint**: The repository is reproducible, documented, scope-checked, and all
-required gates pass. Live Jev tests remain optional and separately credentialed.
+**Checkpoint**: v0.1 is working, documented, reproducible, and suitable for a
+public GitHub portfolio without making production-security claims.
 
 ---
 
 ## Dependencies & Execution Order
 
-### Phase Dependencies
-
-- **Phase 1 (Setup)** has no dependencies.
-- **Phase 2 (Foundational)** depends on Phase 1 and blocks all user stories.
-- **Phase 3 (US1)** depends on Phase 2 and establishes the real MCP route.
-- **Phase 4 (US2)** depends on US1 because it closes the route with deterministic
-  enforcement and non-forwarding results.
-- **Phase 5 (US3)** depends on US2 because it inserts sanitized provider evaluation
-  and complete audit production into the already enforced route.
-- **Phase 6 (US4)** depends on US2 for keyless policy modes and US3 for Jev mode.
-- **Phase 7 (Polish)** depends on all selected user stories.
-
-### User Story Dependency Graph
-
 ```text
-Setup -> Foundation -> US1 -> US2 -> US3
-                              |      |
-                              `------v
-                                    US4 -> Polish
+Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
+                                                               -> Release Polish
 ```
 
-- **US1** is independently testable as a transparent allowed-call proxy increment.
-- **US2** is independently testable with the fake upstream and mock provider once
-  the US1 route exists; it proves policy outcomes and non-forwarding.
-- **US3** is independently testable with captured provider inputs, stderr logs, and
-  temporary SQLite databases; live Jev access is not required.
-- **US4** is independently testable in keyless modes and with a scripted provider;
-  the live Jev comparison is opt-in.
-
-### Within Each Phase
-
-1. Write the phase's tests and confirm they fail for the intended missing behavior.
-2. Implement pure models and validation before I/O components.
-3. Implement services and protocol integration after their boundaries exist.
-4. Run the phase-specific suite and all regressions.
-5. Pass lint and the full TypeScript typecheck before continuing.
+- US1 establishes the real MCP path.
+- US2 closes that path with deterministic decisions and the non-forwarding guard.
+- US3 adds sanitized semantic evaluation and complete audit events.
+- US4 reuses the DecisionProvider and policy boundaries; it does not add a second
+  decision architecture.
+- Release polish follows the working core; README, CI, and Docker tasks can proceed
+  in parallel after command names stabilize.
 
 ## Parallel Opportunities
 
-- Setup configuration files T002-T006 can proceed in parallel after T001.
-- Foundational test tasks T008-T012 are independent; logger, decision types, policy
-  types, and test fixtures can proceed in parallel where their listed tests exist.
-- US1 tests T029-T034 can be written together; T037 and T038 can be implemented in
-  parallel after their tests while upstream transport work proceeds sequentially.
-- US2 tests T043-T047 can be written together; sanitized error mapping T050 can run
-  in parallel with hard-rule and policy work T048-T049.
-- US3 tests T054-T060 can be written together; Jev integration T063 can proceed in
-  parallel with audit work T065 after shared sanitization contracts are fixed.
-- US4 tests T070-T074 can be written together; metric implementation T076 and test
-  fixture work T078 can proceed in parallel with dataset loading T075.
-- Documentation, license, CI, and independent regression suites T082-T087 can run
-  in parallel before the final scope and quality gates.
-
-## Parallel Execution Examples
-
-### User Story 1
-
-```text
-Parallel: T029 gateway result contract, T030 allowed integration, T031 stdio,
-          T032 upstream lifecycle, T033 catalog validation, T034 policy default
-Then:     T035 -> T036; T037 || T038; T039 -> T040 -> T041 -> T042
-```
-
-### User Story 2
-
-```text
-Parallel: T043 hard rules, T044 policy, T045 result contract,
-          T046 non-forwarding, T047 failures
-Then:     T048 -> T049; T050 in parallel; T051 -> T052 -> T053
-```
-
-### User Story 3
-
-```text
-Parallel: T054 sanitizer, T055 provider, T056 audit contract,
-          T057 audit integration, T058 boundary capture, T059 config, T060 corpus
-Then:     T061 -> T062; T063 || T064 || T065; T066 -> T067 -> T068 -> T069
-```
-
-### User Story 4
-
-```text
-Parallel: T070 dataset, T071 metrics, T072 result contract,
-          T073 keyless modes, T074 opt-in Jev
-Then:     T075 || T076 || T078; T077 -> T079 -> T080 -> T081
-```
+- T002-T004 can run in parallel after package initialization.
+- T006-T007 can be written in parallel; T009, T010, and T012 touch independent
+  foundation modules.
+- US1 stdio testing T015 and catalog work T017 can proceed alongside the main proxy
+  integration path after the official SDK setup exists.
+- US2 policy tests T022 and sanitized result mapping T026 are independent before
+  router integration.
+- US3 sanitizer tests T030, Jev adapter tests T032, and audit work T035 can proceed
+  in parallel before T036 integrates them.
+- US4 metric work T038/T041 can proceed alongside dataset and harness work T039/T040.
+- README/license, CI, and Docker tasks T044-T046 can run in parallel.
 
 ## Implementation Strategy
 
-### First Demonstrable Increment
+1. **Working proxy**: Complete Setup, Foundation, and US1.
+2. **Policy proof**: Add US2 and demonstrate zero forwarding for REVIEW/DENY.
+3. **Minimum v0.1 core**: Add US3 and run the complete keyless suite.
+4. **Research value**: Add the compact US4 benchmark.
+5. **Portfolio finish**: Complete README, CI, Docker, and final validation.
 
-1. Complete Setup and Foundation.
-2. Complete US1.
-3. Demonstrate transparent catalog listing and unchanged allowed forwarding.
-4. Do not describe this increment as a policy gateway release yet.
+## Test Scope
 
-### Minimum Constitution-Compliant v0.1 Core
-
-1. Complete US1 transparent proxying.
-2. Complete US2 deterministic policy and non-forwarding outcomes.
-3. Complete US3 sanitized semantic evaluation and audit persistence.
-4. Run the complete keyless suite and all phase gates.
-
-### Full v0.1 Research Release
-
-1. Add US4 comparative benchmarks.
-2. Complete open-source documentation, CI, Docker, security/performance regression,
-   quickstart, and scope review tasks.
-3. Run the final gate; live Jev validation remains opt-in and separately reported.
-
-## Notes
-
-- `[P]` means the task changes different files and has no dependency on unfinished
-  tasks in its parallel group.
-- Tests precede implementation and must fail for the expected reason before code is
-  added.
-- Original MCP arguments are accessible only to validation and the final `ALLOW`
-  forwarding branch; no task may persist or log them.
-- Only `src/mcp/router.ts` may invoke the upstream call path after an `ALLOW`
-  decision.
-- Every implementation phase ends with relevant tests, lint, and full typecheck.
-- Commit after each task or cohesive task group while preserving phase gates.
+- Use unit tests only for configuration parsing, policy logic, sanitization, the
+  Jev adapter mapping, and benchmark math.
+- Use one strong proxy integration test, one non-forwarding policy integration
+  test, one semantic/audit integration test, one benchmark integration test, and
+  one stdio end-to-end test.
+- Test observable gateway behavior; do not reproduce MCP SDK, TypeSafe SDK,
+  SQLite, Pino, Docker, or Node.js test suites.
+- Keep provider failure coverage representative: prove configured behavior once at
+  the policy boundary and once through the gateway.
+- Do not add load testing, exhaustive combinatorial matrices, exact wall-clock
+  gates, or redundant contract tests for behavior already covered end to end.

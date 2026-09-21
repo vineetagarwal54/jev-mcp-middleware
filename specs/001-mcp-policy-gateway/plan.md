@@ -1,6 +1,6 @@
 # Implementation Plan: MCP Policy Gateway v0.1
 
-**Branch**: `master` (no branch hook configured) | **Date**: 2026-09-20 | **Spec**: [spec.md](spec.md)
+**Branch**: `feat/mcp-policy-gateway-v0.1` | **Date**: 2026-09-20 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/001-mcp-policy-gateway/spec.md`
 
@@ -40,11 +40,11 @@ container for reproducible execution; downstream and upstream MCP stdio in v0.1
 **Project Type**: Single-package, single-process command-line middleware gateway
 with no frontend, network service split, or external database
 
-**Performance Goals**: Zero forwarding for all `DENY`/`REVIEW` cases including a
-10,000-call stress run; at most 10 ms p95 gateway-added latency for no-semantic and
-deterministic-only local benchmark modes excluding upstream work; report p50/p95/
-p99 provider and total decision latency; Jev macro F1 at least 0.80 on the labelled
-six-category dataset
+**Performance Goals**: Zero forwarding for all `DENY`/`REVIEW` conformance cases;
+measure gateway-added latency for no-semantic and deterministic-only modes; report
+p50/p95 provider and total decision latency; report Jev macro F1 on the labelled
+six-category dataset, with 0.80 treated as a research target rather than a release
+gate.
 
 **Constraints**: Hard policy always precedes semantic evaluation; semantic output
 is advisory; provider state is exactly the sanitized tool name, public description,
