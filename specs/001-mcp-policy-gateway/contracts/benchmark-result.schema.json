@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jev-mcp-middleware.dev/schemas/benchmark-result-v1.json",
+  "title": "BenchmarkRunV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "datasetVersion",
+    "datasetHash",
+    "configurationId",
+    "mode",
+    "runtime",
+    "seed",
+    "startedAt",
+    "completedAt",
+    "counts",
+    "quality",
+    "latency",
+    "caseResults"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "format": "uuid" },
+    "datasetVersion": { "type": "string", "minLength": 1 },
+    "datasetHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "configurationId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "mode": { "enum": ["NO_SEMANTIC_GATE", "DETERMINISTIC_ONLY", "JEV", "PROVIDER"] },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeVersion", "platform", "architecture"],
+      "properties": {
+        "nodeVersion": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string", "minLength": 1 },
+        "architecture": { "type": "string", "minLength": 1 }
+      }
+    },
+    "seed": { "type": "integer", "minimum": 0, "maximum": 2147483647 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "completed", "errors", "forwarded", "unexpectedForwarding"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "forwarded": { "type": "integer", "minimum": 0 },
+        "unexpectedForwarding": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyAccuracy", "macroF1", "signals"],
+      "properties": {
+        "policyAccuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+        "macroF1": { "type": "number", "minimum": 0, "maximum": 1 },
+        "signals": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/classificationMetrics" }
+        }
+      }
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerMs", "decisionMs"],
+      "properties": {
+        "providerMs": { "$ref": "#/$defs/percentiles" },
+        "decisionMs": { "$ref": "#/$defs/percentiles" }
+      }
+    },
+    "caseResults": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/caseResult" }
+    }
+  },
+  "$defs": {
+    "percentiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p50", "p95", "p99"],
+      "properties": {
+        "p50": { "type": "number", "minimum": 0 },
+        "p95": { "type": "number", "minimum": 0 },
+        "p99": { "type": "number", "minimum": 0 }
+      }
+    },
+    "classificationMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["truePositive", "trueNegative", "falsePositive", "falseNegative", "precision", "recall", "f1"],
+      "properties": {
+        "truePositive": { "type": "integer", "minimum": 0 },
+        "trueNegative": { "type": "integer", "minimum": 0 },
+        "falsePositive": { "type": "integer", "minimum": 0 },
+        "falseNegative": { "type": "integer", "minimum": 0 },
+        "precision": { "type": "number", "minimum": 0, "maximum": 1 },
+        "recall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "f1": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "caseResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caseId", "expectedOutcome", "actualOutcome", "forwarded", "decisionLatencyMs"],
+      "properties": {
+        "caseId": { "type": "string", "minLength": 1 },
+        "expectedOutcome": { "enum": ["ALLOW", "REVIEW", "DENY"] },
+        "actualOutcome": { "enum": ["ALLOW", "REVIEW", "DENY"] },
+        "forwarded": { "type": "boolean" },
+        "providerLatencyMs": { "type": "integer", "minimum": 0 },
+        "decisionLatencyMs": { "type": "integer", "minimum": 0 },
+        "errorCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,63}$" },
+        "expectedSignals": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        },
+        "actualSignals": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

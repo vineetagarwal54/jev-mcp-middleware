@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jev-mcp-middleware.dev/schemas/audit-event-v1.json",
+  "title": "AuditEventV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "correlationId",
+    "occurredAt",
+    "toolName",
+    "validationStatus",
+    "policyDecision",
+    "upstreamOutcome",
+    "totalLatencyMs",
+    "configurationId"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "eventId": { "type": "string", "format": "uuid" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "toolName": { "type": "string", "minLength": 1 },
+    "sanitizedArguments": { "type": "object" },
+    "validationStatus": {
+      "enum": ["VALID", "MALFORMED_REQUEST", "UNKNOWN_TOOL", "INVALID_ARGUMENTS"]
+    },
+    "providerEvaluation": { "$ref": "#/$defs/providerEvaluation" },
+    "policyDecision": { "$ref": "#/$defs/policyDecision" },
+    "upstreamOutcome": { "$ref": "#/$defs/upstreamOutcome" },
+    "totalLatencyMs": { "type": "integer", "minimum": 0 },
+    "configurationId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "$defs": {
+    "riskSignals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destructive",
+        "externalConsequence",
+        "sensitive",
+        "irreversible",
+        "highImpact",
+        "humanReview"
+      ],
+      "properties": {
+        "destructive": { "type": "number", "minimum": 0, "maximum": 1 },
+        "externalConsequence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sensitive": { "type": "number", "minimum": 0, "maximum": 1 },
+        "irreversible": { "type": "number", "minimum": 0, "maximum": 1 },
+        "highImpact": { "type": "number", "minimum": 0, "maximum": 1 },
+        "humanReview": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "providerEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "status", "latencyMs"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "status": {
+          "enum": ["SUCCESS", "TIMEOUT", "UNAVAILABLE", "INVALID", "ABORTED"]
+        },
+        "signals": { "$ref": "#/$defs/riskSignals" },
+        "latencyMs": { "type": "integer", "minimum": 0 },
+        "requestId": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inputTokens", "outputTokens"],
+          "properties": {
+            "inputTokens": { "type": "integer", "minimum": 0 },
+            "outputTokens": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "reasonCode": {
+          "enum": [
+            "PROVIDER_TIMEOUT",
+            "PROVIDER_UNAVAILABLE",
+            "PROVIDER_INVALID_RESPONSE",
+            "PROVIDER_ABORTED",
+            "PROVIDER_INTERNAL_ERROR"
+          ]
+        }
+      }
+    },
+    "policyDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "source",
+        "reasonCodes",
+        "policyLatencyMs",
+        "configurationId"
+      ],
+      "properties": {
+        "outcome": { "enum": ["ALLOW", "REVIEW", "DENY"] },
+        "source": {
+          "enum": [
+            "VALIDATION",
+            "HARD_RULE",
+            "SEMANTIC_THRESHOLDS",
+            "NO_PROVIDER",
+            "PROVIDER_FAILURE"
+          ]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+          }
+        },
+        "hardRuleId": { "type": "string", "minLength": 1 },
+        "failureBehavior": { "enum": ["ALLOW", "REVIEW", "DENY"] },
+        "policyLatencyMs": { "type": "integer", "minimum": 0 },
+        "configurationId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "upstreamOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": [
+            "NOT_ATTEMPTED",
+            "SUCCESS",
+            "TOOL_ERROR",
+            "PROTOCOL_ERROR",
+            "TRANSPORT_ERROR",
+            "ABORTED"
+          ]
+        },
+        "latencyMs": { "type": "integer", "minimum": 0 },
+        "reasonCode": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{1,63}$"
+        }
+      }
+    }
+  }
+}
