@@ -1,0 +1,21 @@
+# US1 transparent-proxy increment. No policy or semantic protection is active yet.
+# Paths are relative to this configuration file. Replace command/args for your server.
+version: 1
+upstream:
+  transport: stdio
+  command: node
+  args: [--import, tsx, tests/fixtures/fakeMcpServer.ts]
+  cwd: ..
+  envPassthrough: []
+  requestTimeoutMs: 30000
+provider:
+  type: none
+policy:
+  noProviderOutcome: ALLOW
+  providerFailureOutcome: DENY
+  hardRules: []
+audit:
+  sqlitePath: ../data/audit.db
+  busyTimeoutMs: 5000
+logging:
+  level: info

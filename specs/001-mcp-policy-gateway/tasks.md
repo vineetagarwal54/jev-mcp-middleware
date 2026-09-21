@@ -13,11 +13,11 @@ typecheck before the next phase begins.
 
 **Purpose**: Establish a strict, reproducible single-package TypeScript project.
 
-- [ ] T001 Initialize Node.js 24 ESM dependencies, scripts, package metadata, and the lockfile in `package.json` and `package-lock.json`
-- [ ] T002 [P] Configure strict `NodeNext` TypeScript and focused lint rules in `tsconfig.json` and `eslint.config.js`
-- [ ] T003 [P] Configure Vitest for unit and integration suites in `vitest.config.ts`
-- [ ] T004 [P] Ignore build output, local YAML, SQLite files, benchmark results, coverage, and secrets in `.gitignore`
-- [ ] T005 Run install, lint, typecheck, test discovery, and build scripts from `package.json`; fix all setup failures before Phase 2
+- [X] T001 Initialize Node.js 24 ESM dependencies, scripts, package metadata, and the lockfile in `package.json` and `package-lock.json`
+- [X] T002 [P] Configure strict `NodeNext` TypeScript and focused lint rules in `tsconfig.json` and `eslint.config.js`
+- [X] T003 [P] Configure Vitest for unit and integration suites in `vitest.config.ts`
+- [X] T004 [P] Ignore build output, local YAML, SQLite files, benchmark results, coverage, and secrets in `.gitignore`
+- [X] T005 Run install, lint, typecheck, test discovery, and build scripts from `package.json`; fix all setup failures before Phase 2
 
 **Checkpoint**: The empty project builds and all static gates pass.
 
@@ -29,17 +29,17 @@ typecheck before the next phase begins.
 
 ### Tests First
 
-- [ ] T006 [P] Write focused tests for valid/invalid YAML configuration and scripted MockDecisionProvider behavior in `tests/unit/config/config.test.ts` and `tests/unit/decision/MockDecisionProvider.test.ts`
-- [ ] T007 [P] Write a SQLite repository smoke test covering migration, one insert, one read, and an observable insert failure in `tests/unit/audit/AuditRepository.test.ts`
+- [X] T006 [P] Write focused tests for valid/invalid YAML configuration and scripted MockDecisionProvider behavior in `tests/unit/config/config.test.ts` and `tests/unit/decision/MockDecisionProvider.test.ts`
+- [X] T007 [P] Write a SQLite repository smoke test covering migration, one insert, one read, and an observable insert failure in `tests/unit/audit/AuditRepository.test.ts`
 
 ### Shared Implementation
 
-- [ ] T008 Implement strict Zod configuration parsing, explicit failure defaults, non-secret environment resolution, and the sample YAML in `src/config/schema.ts`, `src/config/loadConfig.ts`, and `config/example.yaml`
-- [ ] T009 [P] Define provider inputs, six advisory signals, provider failures, the DecisionProvider interface, and a scripted MockDecisionProvider in `src/decision/types.ts`, `src/decision/DecisionProvider.ts`, and `src/decision/MockDecisionProvider.ts`
-- [ ] T010 [P] Configure Pino JSON logging to stderr with correlation IDs and basic credential-field removal in `src/logging/logger.ts`
-- [ ] T011 Implement one initial SQLite audit table, a small prepared-statement repository, and basic audit event/service types in `migrations/001-create-audit-events.sql`, `src/audit/AuditRepository.ts`, `src/audit/AuditEvent.ts`, and `src/audit/auditService.ts`
-- [ ] T012 [P] Implement a fake official-SDK upstream MCP server with a fixed tool catalog, invocation counter, configurable result, and configurable error in `tests/fixtures/fakeMcpServer.ts`
-- [ ] T013 Run the foundation tests, lint, and full typecheck through `package.json`; fix all failures before Phase 3
+- [X] T008 Implement strict Zod configuration parsing, explicit failure defaults, non-secret environment resolution, and the sample YAML in `src/config/schema.ts`, `src/config/loadConfig.ts`, and `config/example.yaml`
+- [X] T009 [P] Define provider inputs, six advisory signals, provider failures, the DecisionProvider interface, and a scripted MockDecisionProvider in `src/decision/types.ts`, `src/decision/DecisionProvider.ts`, and `src/decision/MockDecisionProvider.ts`
+- [X] T010 [P] Configure Pino JSON logging to stderr with correlation IDs and basic credential-field removal in `src/logging/logger.ts`
+- [X] T011 Implement one initial SQLite audit table, a small prepared-statement repository, and basic audit event/service types in `migrations/001-create-audit-events.sql`, `src/audit/AuditRepository.ts`, `src/audit/AuditEvent.ts`, and `src/audit/auditService.ts`
+- [X] T012 [P] Implement a fake official-SDK upstream MCP server with a fixed tool catalog, invocation counter, configurable result, and configurable error in `tests/fixtures/fakeMcpServer.ts`
+- [X] T013 Run the foundation tests, lint, and full typecheck through `package.json`; fix all failures before Phase 3
 
 **Checkpoint**: Configuration, mock decisions, audit persistence, logging, and the
 fake upstream work without TypeSafe credentials.
@@ -57,17 +57,17 @@ unchanged result; also reject one representative invalid argument payload.
 
 ### Tests for User Story 1
 
-- [ ] T014 [US1] Write one high-value proxy integration test for `tools/list`, allowed `tools/call`, unchanged results, upstream errors, and basic argument validation in `tests/integration/gateway-proxy.test.ts`
-- [ ] T015 [P] [US1] Write one end-to-end subprocess stdio test proving host-to-gateway-to-upstream flow and protocol-only stdout in `tests/integration/gateway-stdio.test.ts`
+- [X] T014 [US1] Write one high-value proxy integration test for `tools/list`, allowed `tools/call`, unchanged results, upstream errors, and basic argument validation in `tests/integration/gateway-proxy.test.ts`
+- [X] T015 [P] [US1] Write one end-to-end subprocess stdio test proving host-to-gateway-to-upstream flow and protocol-only stdout in `tests/integration/gateway-stdio.test.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Construct official SDK stdio transports and implement upstream connect, list, call, and close behavior in `src/mcp/transportFactories.ts` and `src/mcp/upstreamClient.ts`
-- [ ] T017 [P] [US1] Snapshot the upstream catalog and compile basic Ajv argument validators in `src/mcp/toolCatalog.ts`
-- [ ] T018 [US1] Implement the initial validated ALLOW route and upstream outcome capture in `src/mcp/router.ts`
-- [ ] T019 [US1] Expose low-level `tools/list` and `tools/call` handlers while preserving upstream results in `src/mcp/gatewayServer.ts`
-- [ ] T020 [US1] Compose configuration, logging, audit persistence, upstream client, router, stdio server, and shutdown handling in `src/index.ts`
-- [ ] T021 [US1] Run the proxy and stdio integration tests plus lint and full typecheck through `package.json`; fix all failures before Phase 4
+- [X] T016 [US1] Construct official SDK stdio transports and implement upstream connect, list, call, and close behavior in `src/mcp/transportFactories.ts` and `src/mcp/upstreamClient.ts`
+- [X] T017 [P] [US1] Snapshot the upstream catalog and compile basic Ajv argument validators in `src/mcp/toolCatalog.ts`
+- [X] T018 [US1] Implement the initial validated ALLOW route and upstream outcome capture in `src/mcp/router.ts`
+- [X] T019 [US1] Expose low-level `tools/list` and `tools/call` handlers while preserving upstream results in `src/mcp/gatewayServer.ts`
+- [X] T020 [US1] Compose configuration, logging, audit persistence, upstream client, router, stdio server, and shutdown handling in `src/index.ts`
+- [X] T021 [US1] Run the proxy and stdio integration tests plus lint and full typecheck through `package.json`; fix all failures before Phase 4
 
 **Checkpoint**: A real transparent MCP proxy works end to end.
 
