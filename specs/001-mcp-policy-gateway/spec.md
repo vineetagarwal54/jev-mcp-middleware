@@ -133,6 +133,41 @@ same evaluation contract.
    it is selected for a benchmark, **Then** the harness can compare it without
    changing dataset or policy-result definitions.
 
+---
+
+### User Story 5 - Opt In to Local Laya Evaluation (Priority: P2)
+
+An operator selects Laya instead of hosted Jev, explicitly loads its local ONNX
+model before the gateway accepts MCP calls, and obtains the same six advisory
+signals for the same sanitized input and deterministic policy.
+
+**Why this priority**: A second real provider makes the existing substitution and
+benchmarking boundaries useful without changing the v0.1 proxy or policy model.
+
+**Independent Test**: Inject a fake Laya session, start the gateway without model
+weights or credentials, and verify one six-question evaluation, unchanged policy
+and zero forwarding for `REVIEW`/`DENY`. Run the same labelled dataset through
+scripted Jev and Laya providers to verify shared questions and policy settings.
+
+**Acceptance Scenarios**:
+
+1. **Given** `provider.type: laya`, **When** gateway startup begins, **Then** it
+   loads one Laya session before serving downstream MCP calls and reuses it for
+   subsequent calls; load failure is a startup failure, not a first-call delay.
+2. **Given** an eligible sanitized call, **When** Laya evaluates it, **Then** all
+   six shared Noul questions are sent in one `systemOne` invocation and only
+   bounded advisory signals reach deterministic policy.
+3. **Given** input beyond the active Laya checkpoint's context budget, **When**
+   evaluation is attempted, **Then** the adapter rejects it visibly before
+   inference rather than accepting an unreported truncated prediction; configured
+   provider-failure policy decides the final outcome.
+4. **Given** a keyless CI run, **When** tests exercise Laya with an injected fake
+   session, **Then** no model download, Hugging Face access, ONNX inference, or
+   TypeSafe credential is required.
+5. **Given** a Laya benchmark, **When** it completes, **Then** model load time is
+   separate from warm provider latency and the report shows coverage, context
+   rejections, errors, policy accuracy, and six-signal quality on predicted cases.
+
 ### Edge Cases
 
 - A request is malformed, lacks a tool name, has invalid arguments, or names a tool
@@ -154,6 +189,8 @@ same evaluation contract.
 - A result is `REVIEW` even though no interactive reviewer is available.
 - A benchmark case has missing labels, contradictory labels, provider errors, or
   no positive examples for a reported classification category.
+- Laya's active checkpoint has a smaller context than Jev; model load fails,
+  inputs exceed its safe context budget, or local inference exceeds the deadline.
 
 ## Requirements *(mandatory)*
 
@@ -236,6 +273,35 @@ same evaluation contract.
 - **FR-028**: v0.1 MUST NOT add OAuth federation, dashboards, SaaS or multitenancy,
   dynamic tool-catalog refresh, token reduction, response scanning, Kubernetes,
   Redis, or claims of production-security assurance.
+- **FR-029**: Provider selection MUST additionally support optional `laya` through
+  `@receptron/laya`, with Laya-specific local model/cache/checkpoint settings
+  rather than Jev credentials, model name, or retry settings.
+- **FR-030**: Jev and Laya MUST derive the same six Noul question IDs and exact
+  instruction strings from one provider-neutral definition. Laya MUST evaluate
+  all six in one `systemOne` request and return the common `ProviderEvaluation`.
+- **FR-031**: Selecting Laya MUST load one model session explicitly during
+  gateway startup, before downstream service, and reuse/close that session over
+  the gateway lifecycle. Startup load/download failures MUST fail startup.
+- **FR-032**: The Laya adapter MUST prevent silent state truncation by checking
+  the sanitized state against the loaded checkpoint's token budget before
+  inference. Over-limit or uncheckable input MUST return a typed provider failure
+  with a sanitized context-limit reason; policy MUST apply the configured
+  provider-failure outcome. It MUST NOT forward unless that deterministic outcome
+  is `ALLOW`.
+- **FR-033**: Normal keyless tests and CI MUST use an injected fake Laya session;
+  they MUST NOT download weights, contact Hugging Face, execute ONNX inference,
+  or require TypeSafe credentials. Real Laya execution MUST be opt-in.
+- **FR-034**: Benchmarking MUST additionally support `LAYA` using the same
+  sanitized dataset, six instructions, hard rules, eligibility, thresholds, and
+  labels as `JEV`; it MUST separate model initialization/load time from warm
+  provider p50/p95/p99 latency and visibly count semantic skips, provider errors,
+  and context-limit rejections. Macro/per-signal F1 MUST use successful signal
+  predictions only and be shown with their coverage.
+- **FR-035**: Documentation MUST describe Laya's first-use download/cache,
+  approximate 1.7 GB default weights and 2 GB-plus memory needs, shorter context,
+  opt-in execution, and model-free default CI/Docker image. The 12-case synthetic
+  dataset MUST be called an engineering smoke benchmark, not comparative evidence
+  of provider superiority.
 
 ### Constitution Requirements *(mandatory)*
 
@@ -265,6 +331,9 @@ same evaluation contract.
   explicitly exclude the deferred product and infrastructure features.
 - **Research limitation**: FR-027 requires every v0.1 description to identify the
   gateway as research/developer tooling without production-security claims.
+- **Local provider extension**: FR-029 through FR-035 preserve advisory output,
+  deterministic authority, hard-rule precedence, secret minimization, and keyless
+  protocol tests while adding an opt-in local provider and honest measurement.
 
 ### Key Entities
 
@@ -332,6 +401,13 @@ assurance are deferred beyond v0.1.
 - **SC-010**: A release-scope review finds all nine named exclusions absent and no
   documentation or benchmark output presenting v0.1 as a production security
   guarantee.
+- **SC-011**: A model-free fake-session test proves Laya emits six bounded signals
+  from one batched call with exactly the shared Jev instructions, and that
+  `REVIEW`/`DENY` remain non-forwarding under the existing policy.
+- **SC-012**: Laya benchmark output reports load time separately from p50/p95/p99
+  warm evaluation latency, semantic coverage, provider/context errors, policy
+  accuracy, and macro/per-signal F1 on successful predictions; no relative
+  speed/quality claim is made from the smoke dataset.
 
 ## Assumptions
 
@@ -354,6 +430,10 @@ assurance are deferred beyond v0.1.
 - Jev credentials are supplied only to the Jev integration boundary. They are
   never part of provider evaluation payloads, audit events, benchmark cases, or
   benchmark reports.
+- Laya uses the package's default English checkpoint unless a local model
+  directory or supported checkpoint subfolder is configured. The local model
+  bundle's context settings determine the adapter's conservative input budget;
+  over-budget inputs fail visibly rather than being silently truncated.
 - Upstream tool results are returned without semantic inspection because response
   scanning is explicitly out of scope.
 - MCP hosts and upstream servers used with v0.1 support the common tool listing and

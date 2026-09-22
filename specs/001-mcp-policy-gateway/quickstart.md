@@ -1,8 +1,9 @@
 # Quickstart Validation Guide: MCP Policy Gateway v0.1
 
-This guide validates the implemented gateway. It uses the mock
-provider and fake upstream for the required keyless path; Jev validation is an
-optional final step.
+This guide validates the implemented gateway. It uses the mock provider and fake
+upstream for the required keyless path; Jev validation is optional. Section 10
+describes the planned opt-in Laya validation after the Laya tasks are implemented;
+the current v0.1 source does not yet support `provider.type: laya`.
 
 ## Prerequisites
 
@@ -10,6 +11,8 @@ optional final step.
 - Git
 - Docker only for the container validation section
 - A TypeSafe API key only for the optional Jev section
+- For optional future Laya validation: a local ONNX bundle or first-use Hugging
+  Face download (approximately 1.7 GB) and roughly 2 GB-plus available RAM
 
 The detailed contracts are in:
 
@@ -170,7 +173,35 @@ artifacts. Inspect coverage and error counts: hard-rule cases skip Jev and faile
 provider calls have no signal prediction. The tiny synthetic dataset is research
 infrastructure, not statistically meaningful security evidence.
 
-## 10. Final Phase Gate
+## 10. Planned Optional Laya Validation (after implementation)
+
+Normal `npm run test:keyless` and GitHub Actions must stay model-free: fake Laya
+sessions exercise the adapter without Hugging Face access, weights, ONNX
+inference, or a TypeSafe key. Do not run the following until Laya implementation
+tasks are complete and a local ONNX bundle is available:
+
+```powershell
+# In an ignored local YAML copy, set provider.type: laya and
+# provider.modelDir to a complete local ONNX bundle.
+npm run benchmark -- --config config/local-laya.yaml --mode laya
+```
+
+The gateway loads the model once before serving MCP; the benchmark reports
+initialization/load time separately from warm provider p50/p95/p99. Check
+`semanticEvaluated`, `semanticSkipped`, `semanticPredicted`, `providerErrors`, and
+`contextRejected` before reading macro/per-signal F1. An over-budget state must
+be reported as `PROVIDER_CONTEXT_LIMIT`, not scored as a silently truncated
+prediction. Jev and Laya use the same dataset, sanitized input, six question
+instructions, and policy; hard-rule short circuits remain in both modes. The
+12-case synthetic dataset is only an engineering smoke test. Meaningful quality
+or speed claims need a larger labelled MCP-specific dataset and repeated measured
+runs later.
+
+The default Docker image does not include model weights. To opt in inside Docker,
+mount the local bundle/cache, config, and writable audit directory and allocate
+sufficient memory; do not bake weights into the image.
+
+## 11. Final Phase Gate
 
 ```powershell
 npm run lint

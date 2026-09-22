@@ -170,11 +170,44 @@ public GitHub portfolio without making production-security claims.
 
 ---
 
+## Phase 8: User Story 5 - Optional Local Laya Provider (Priority: P2)
+
+**Goal**: Add Laya through the existing advisory provider contract without
+changing router or policy authority. Real model loading is opt-in; CI stays
+model-free. This phase extends the completed 47-task v0.1 baseline.
+
+**Independent Test**: Inject a fake Laya session/context probe, verify one
+six-question call and shared Jev wording, then run representative gateway calls
+and the same labelled benchmark through scripted providers. Neither fake path
+downloads weights or executes ONNX.
+
+### Tests First
+
+- [ ] T048 [US5] Add focused fake-session Laya adapter tests for one batched six-Noul call, shared exact question instructions, bounded signal mapping, and invalid/over-context failure in `tests/unit/decision/LayaDecisionProvider.test.ts`; keep these tests weight-free
+- [ ] T049 [US5] Extend one existing gateway policy integration test with a fake Laya provider proving deterministic hard-rule precedence and zero upstream calls for `REVIEW`/`DENY` in `tests/integration/gateway-policy.test.ts`
+- [ ] T050 [US5] Extend the existing benchmark integration test with scripted Jev/Laya-equivalent providers to verify identical cases/policy, semantic coverage, context-error visibility, and separate initialization latency in `tests/integration/benchmark.test.ts`
+
+### Implementation and Documentation
+
+- [ ] T051 [US5] Pin `@receptron/laya` (and its tokenizer package as a direct dependency only if the context preflight imports it) in `package.json`/`package-lock.json`; add the distinct strict `laya` provider configuration variant plus path resolution/validation in `src/config/schema.ts` and `src/config/loadConfig.ts`, preserving existing provider config behavior
+- [ ] T052 [US5] Extract the six existing Jev question IDs and unchanged instruction strings into `src/decision/riskQuestions.ts`; make Jev consume the shared definition without changing its request state or answer mapping
+- [ ] T053 [US5] Implement `LayaDecisionProvider` with one loaded reusable session, one six-question `systemOne` call, normalized `ProviderEvaluation`, and a conservative tokenizer/config preflight that returns `PROVIDER_CONTEXT_LIMIT` before inference instead of allowing silent state truncation in `src/decision/LayaDecisionProvider.ts` and `src/decision/types.ts`
+- [ ] T054 [US5] Add a small async provider factory and startup/shutdown wiring so Laya loads once before `serveStdio`, startup load failure aborts service, and sessions close cleanly; keep the router and policy engine unchanged in `src/decision/createDecisionProvider.ts` and `src/index.ts`
+- [ ] T055 [US5] Add opt-in `LAYA` benchmark mode and CLI selection, reuse the identical dataset/sanitizer/policy/questions, measure model initialization separately from warm provider p50/p95/p99, and report coverage/provider/context errors and policy/macro/per-signal quality in `src/benchmark/runBenchmark.ts`
+- [ ] T056 [US5] Update `README.md` with opt-in Laya startup/benchmark instructions, local model/cache and memory needs, context-rejection behavior, model-free CI/default Docker image, and the synthetic-dataset limitation; do not bundle weights or add GPU infrastructure
+- [ ] T057 [US5] Run lint, full typecheck, `npm run test:keyless`, and build; confirm no model download/Hugging Face/ONNX call in CI, document real Laya smoke execution as optional only, and record validation results in `specs/001-mcp-policy-gateway/quickstart.md`
+
+**Checkpoint**: Jev and Laya remain advisory alternatives with one shared semantic
+question contract; deterministic policy and non-forwarding remain unchanged.
+
+---
+
 ## Dependencies & Execution Order
 
 ```text
 Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
                                                                -> Release Polish
+                                                               -> US5 Local Laya
 ```
 
 - US1 establishes the real MCP path.
@@ -184,6 +217,8 @@ Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
   decision architecture.
 - Release polish follows the working core; README, CI, and Docker tasks can proceed
   in parallel after command names stabilize.
+- US5 follows the completed v0.1 core. Its adapter/config/factory/benchmark work
+  reuses existing boundaries; tests remain model-free by default.
 
 ## Parallel Opportunities
 
@@ -198,6 +233,8 @@ Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
   in parallel before T036 integrates them.
 - US4 metric work T038/T041 can proceed alongside dataset and harness work T039/T040.
 - README/license, CI, and Docker tasks T044-T046 can run in parallel.
+- US5 test design T048-T050 may proceed together; shared questions T052 and
+  configuration T051 precede adapter/factory integration T053-T055.
 
 ## Implementation Strategy
 
@@ -206,11 +243,14 @@ Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
 3. **Minimum v0.1 core**: Add US3 and run the complete keyless suite.
 4. **Research value**: Add the compact US4 benchmark.
 5. **Portfolio finish**: Complete README, CI, Docker, and final validation.
+6. **Optional local comparison**: Complete US5 without changing policy/router
+   semantics; pass keyless tests and full typecheck before any opt-in real-model
+   smoke run.
 
 ## Test Scope
 
 - Use unit tests only for configuration parsing, policy logic, sanitization, the
-  Jev adapter mapping, and benchmark math.
+  Jev/Laya adapter mappings and context preflight, and benchmark math.
 - Use one strong proxy integration test, one non-forwarding policy integration
   test, one semantic/audit integration test, one benchmark integration test, and
   one stdio end-to-end test.
@@ -220,3 +260,5 @@ Setup -> Foundation -> US1 Proxy -> US2 Policy -> US3 Jev/Audit -> US4 Benchmark
   the policy boundary and once through the gateway.
 - Do not add load testing, exhaustive combinatorial matrices, exact wall-clock
   gates, or redundant contract tests for behavior already covered end to end.
+- Do not run real Laya inference or download weights in the keyless suite; use one
+  fake-session adapter test and extend existing integration coverage.

@@ -84,6 +84,7 @@
             "PROVIDER_UNAVAILABLE",
             "PROVIDER_INVALID_RESPONSE",
             "PROVIDER_ABORTED",
+            "PROVIDER_CONTEXT_LIMIT",
             "PROVIDER_INTERNAL_ERROR"
           ]
         }

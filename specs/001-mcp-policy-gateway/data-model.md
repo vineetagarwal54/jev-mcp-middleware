@@ -35,7 +35,7 @@ Validated, immutable configuration loaded once during startup.
 |-------|------|----------|------------|
 | `version` | literal `1` | Yes | Reject other versions. |
 | `upstream` | `UpstreamConfig` | Yes | v0.1 transport is `stdio`; command must be non-empty. |
-| `provider` | `ProviderConfig` | Yes | Mode is `none`, `mock`, or `jev`; Jev key is referenced only by fixed environment variable name. |
+| `provider` | `ProviderConfig` | Yes | Mode is `none`, `mock`, `jev`, or `laya`; provider-specific fields are strictly separated. Jev key is referenced only by fixed environment variable name. |
 | `policy` | `PolicyConfig` | Yes | Outcomes and all probability thresholds are validated. |
 | `sanitization` | `SanitizationConfig` | Yes | Redaction keys and value patterns are bounded and compiled at startup. |
 | `audit` | `AuditConfig` | Yes | SQLite path and bounded busy timeout are required. |
@@ -45,6 +45,12 @@ Validated, immutable configuration loaded once during startup.
 The normalized configuration receives a SHA-256 `configurationId` computed from
 non-secret canonical data. The TypeSafe API key value is never present in this
 entity.
+
+The Laya variant has a bounded evaluation timeout and optional local `modelDir`
+or cache/checkpoint selection. Its ONNX session and tokenizer are startup-owned
+resources, not configuration or audit data. Startup loads them before accepting
+MCP requests, and shutdown closes the session. There is no Laya credential or
+Jev model/retry setting in this variant.
 
 ## ToolCatalogEntry
 
@@ -117,18 +123,25 @@ Normalized advisory output from any `DecisionProvider`.
 
 | Field | Type | Validation |
 |-------|------|------------|
-| `provider` | `jev` or `mock` or baseline identifier | Non-empty stable identifier. |
+| `provider` | `jev`, `laya`, `mock`, or baseline identifier | Non-empty stable identifier. |
 | `status` | `SUCCESS`, `TIMEOUT`, `UNAVAILABLE`, `INVALID`, `ABORTED` | Exactly one terminal status. |
 | `signals` | `RiskSignals` or absent | Present only for `SUCCESS`. |
 | `latencyMs` | non-negative integer | Measured around the complete provider operation. |
 | `requestId` | string or absent | Provider-generated ID; must not contain secrets. |
 | `model` | string or absent | Provider-reported model identity. |
 | `usage` | token counts or absent | Non-negative integers when available. |
-| `reasonCode` | enum or absent | Sanitized failure category, never raw exception text. |
+| `reasonCode` | enum or absent | Sanitized failure category, including `PROVIDER_CONTEXT_LIMIT` for an unfit/uncheckable Laya state; never raw exception text. |
 
 `RiskSignals` contains exactly six numbers in the inclusive range 0..1:
 `destructive`, `externalConsequence`, `sensitive`, `irreversible`, `highImpact`,
 and `humanReview`.
+
+The six Noul IDs and exact instructions are one shared provider-neutral constant.
+Both real adapters use the same sanitized state and map their responses to these
+six fields. Laya preflights the selected checkpoint's token budget before its one
+batched inference; over-limit input is a visible `INVALID` provider evaluation,
+not a successful classification of an internally truncated state. Configured
+provider-failure policy still owns the final outcome.
 
 ## PolicyConfig and PolicyDecision
 
@@ -235,6 +248,15 @@ sanitized error category.
 - macro F1 across the six signals;
 - final policy accuracy; and
 - p50, p95, and p99 provider and total decision latency.
+- for Laya, startup model initialization/load time apart from warm per-case
+  provider latency, plus a count of context-limit rejections (case results carry
+  `PROVIDER_CONTEXT_LIMIT`).
+
+Semantic coverage distinguishes cases skipped before provider evaluation,
+provider evaluations that returned no signals, and successful predictions.
+Macro/per-signal F1 uses only successful predictions; policy accuracy uses the
+full dataset. The 12 synthetic cases are a smoke/engineering dataset, not
+evidence that one provider is better or faster.
 
 Benchmark artifacts contain no TypeSafe key, raw environment, headers, original
 unsanitized calls, or provider request bodies.
