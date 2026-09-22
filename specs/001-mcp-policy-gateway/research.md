@@ -236,3 +236,85 @@ Jev would violate keyless core testing and expose secrets to untrusted changes.
 [`setup-node`](https://github.com/actions/setup-node/blob/main/README.md),
 [`npm ci`](https://docs.npmjs.com/cli/commands/npm-ci),
 [GitHub action SHA policy](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository).
+
+## Optional Local Laya Provider (2026-09-22)
+
+**Decision**: Add `@receptron/laya` as an opt-in local `DecisionProvider`, not a
+second gateway or policy path. `Laya.load()` completes during gateway startup;
+one loaded session is reused and closed at shutdown. A narrow async factory is
+enough to share startup construction with the benchmark CLI. Pin the package
+version and lockfile during implementation after checking its Node 24/ONNX build.
+
+**Rationale**: The package's `systemOne(state, questions)` accepts multiple Noul
+questions in one ONNX inference and returns Jev-compatible typed probabilities.
+The published default ONNX bundle is about 1.7 GB and the package recommends
+roughly 2 GB of loaded memory plus inference overhead. Loading on the first MCP
+call would hide download and cold-start time in a policy decision.
+
+**Alternatives considered**: A separate Laya service, Python bridge, and a
+Laya-to-Jev cascade add scope; loading lazily on first evaluation obscures startup
+failure and latency. Exposing all ONNX session options is unnecessary for v0.1.
+
+**Sources**: [official Node package README](https://github.com/receptron/laya/blob/main/README.md),
+[Laya load and inference implementation](https://github.com/receptron/laya/blob/main/src/laya.ts).
+
+## Shared Questions and Context Boundary
+
+**Decision**: Move Jev's existing six question IDs and exact instruction strings
+into one provider-neutral constant; both adapters transform that constant into
+their API shapes without wording changes. For Laya, keep the same sanitized state
+as Jev, but perform a conservative, model-aware state-token preflight before
+`systemOne`. Read `max_len`/`head_max_len` and the tokenizer from the selected
+local/cached bundle; reserve the full head budget plus sequence markers for each
+question. Over-budget or uncheckable input yields `INVALID` with
+`PROVIDER_CONTEXT_LIMIT`; no partial-input prediction is accepted. Record context
+rejections separately in benchmark output. Count the same JSON-state rendering
+that Laya tokenizes, including its mask-token scrubbing; do not truncate or
+summarize inputs.
+
+**Rationale**: The package currently truncates state to its checkpoint `max_len`
+(512 tokens for the default English model) after the question header and does not
+return a truncation flag. Its `usage.input_tokens` reports consumed tokens, not
+discarded tokens, so it cannot by itself prove full-context evaluation. Reserving
+the maximum head budget is conservative but guarantees a safely fitting state
+without duplicating the whole sequence builder. Any false rejection is visible
+and uses the configured provider-failure outcome; it cannot masquerade as a
+successful quality measurement. Shared wording and untouched sanitized state
+make Jev/Laya comparison as fair as their different contexts permit.
+
+**Alternatives considered**: Silent package truncation would corrupt quality
+comparisons. A character-count approximation cannot guarantee fit. Replacing
+the package's tokenizer/sequence implementation or building a general compaction
+system exceeds scope. A larger Laya checkpoint may be chosen explicitly via
+`subfolder`, but changing checkpoints does not change policy or benchmark labels.
+
+**Sources**: [package limits and model options](https://github.com/receptron/laya/blob/main/README.md),
+[sequence truncation code](https://github.com/receptron/laya/blob/main/src/sequence.ts),
+[model config and result types](https://github.com/receptron/laya/blob/main/src/types.ts).
+
+## Configuration, Test Isolation, and Benchmark Fairness
+
+**Decision**: Add a strict Laya-specific provider variant: optional `modelDir`,
+`cacheDir`, `subfolder`, immutable `revision`, CPU execution provider, and bounded
+evaluation timeout. `modelDir` takes precedence and makes startup offline; the
+other selection fields are omitted from the load request when it is set. Do not
+expose Hugging Face tokens, arbitrary repos, session options, or Jev retry/model
+fields in Laya YAML. Tests inject a fake Laya session and context probe; normal
+CI never calls `Laya.load()`. Benchmarks use the same cases, sanitizer, questions,
+hard rules, eligibility, thresholds, and labels in Jev/Laya modes. Only the
+provider differs; record initialization time separately from warm p50/p95/p99.
+
+**Rationale**: The package's `ensureBundle()` may check Hugging Face even when a
+cache is populated, whereas `modelDir` directly opens local files. The default
+Docker image need not contain weights; an opt-in container run can mount a local
+model bundle/cache and provide sufficient RAM. The existing 12-case synthetic
+dataset is an engineering smoke test, not evidence of comparative superiority.
+
+**Alternatives considered**: Real inference in pull-request CI would download
+large weights and produce platform-dependent results. Different thresholds or
+labels per provider would confound comparison. Full tokenizer-aware preprocessing
+or dataset expansion is deferred.
+
+**Sources**: [package download/cache behavior](https://github.com/receptron/laya/blob/main/src/download.ts),
+[package runtime options](https://github.com/receptron/laya/blob/main/src/laya.ts),
+[package README](https://github.com/receptron/laya/blob/main/README.md).

@@ -26,7 +26,7 @@
     "datasetVersion": { "type": "string", "minLength": 1 },
     "datasetHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "configurationId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "mode": { "enum": ["NO_SEMANTIC_GATE", "DETERMINISTIC_ONLY", "JEV", "PROVIDER"] },
+    "mode": { "enum": ["NO_SEMANTIC_GATE", "DETERMINISTIC_ONLY", "JEV", "LAYA", "PROVIDER"] },
     "provider": {
       "type": "object",
       "additionalProperties": false,
@@ -52,11 +52,16 @@
     "counts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "completed", "errors", "forwarded", "unexpectedForwarding"],
+      "required": ["total", "completed", "errors", "semanticEvaluated", "semanticSkipped", "semanticPredicted", "providerErrors", "forwarded", "unexpectedForwarding"],
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
         "completed": { "type": "integer", "minimum": 0 },
         "errors": { "type": "integer", "minimum": 0 },
+        "semanticEvaluated": { "type": "integer", "minimum": 0 },
+        "semanticSkipped": { "type": "integer", "minimum": 0 },
+        "semanticPredicted": { "type": "integer", "minimum": 0 },
+        "providerErrors": { "type": "integer", "minimum": 0 },
+        "contextRejected": { "type": "integer", "minimum": 0, "description": "Laya cases rejected before inference to avoid silent state truncation; included in providerErrors. Required in new LAYA reports." },
         "forwarded": { "type": "integer", "minimum": 0 },
         "unexpectedForwarding": { "type": "integer", "minimum": 0 }
       }
@@ -80,6 +85,7 @@
       "required": ["providerMs", "decisionMs"],
       "properties": {
         "providerMs": { "$ref": "#/$defs/percentiles" },
+        "providerInitializationMs": { "type": "number", "minimum": 0, "description": "Startup/model-load time, excluded from warm providerMs percentiles. Required in new LAYA reports." },
         "decisionMs": { "$ref": "#/$defs/percentiles" }
       }
     },

@@ -94,14 +94,31 @@ benchmark:
 
 ### Provider
 
-- `type` is `none`, `mock`, or `jev`. `mock` is rejected in normal production mode
-  unless an explicit test/benchmark command enables it.
+- `type` is `none`, `mock`, `jev`, or `laya`. `mock` is rejected in normal gateway
+  mode unless an explicit test/benchmark command enables it. Preserve the
+  existing `none`/`mock`/`jev` YAML forms; validate Laya as a distinct strict
+  variant rather than supplying Jev model/retry defaults to it.
 - `jev` requires `TYPESAFE_API_KEY` at startup. The YAML file cannot contain an API
   key or arbitrary request headers.
-- `timeoutMs` is 1 through 60000. Retry counts are 0 through 5; delay values are
-  bounded and the maximum cannot be lower than the initial delay.
-- SDK retry values are always supplied explicitly so latency/failure behavior does
-  not change with SDK defaults.
+- `timeoutMs` is 1 through 60000 for both real providers. Jev retains its `model`
+  and `retry` fields. Retry counts are 0 through 5; delay values are bounded and
+  the maximum cannot be lower than the initial delay. Jev SDK retry values are
+  always supplied explicitly.
+- Laya accepts only `type: laya`, `timeoutMs`, and optional `modelDir`, `cacheDir`,
+  `subfolder`, and `revision`. Paths resolve relative to the YAML file. If
+  `modelDir` is set, it names a complete local ONNX bundle and no download/cache
+  selection is used; reject combining it with `cacheDir`, `subfolder`, or
+  `revision`. Otherwise the package's default English bundle is used unless a
+  checkpoint `subfolder` is selected; `revision` may pin a published revision for
+  reproducibility. Execution defaults to CPU; arbitrary ONNX session options,
+  arbitrary repository IDs, Hugging Face tokens, Jev `model`/`retry`, and any
+  provider credential in YAML are unsupported.
+- Laya session loading happens once before the gateway serves MCP. `timeoutMs`
+  bounds each evaluation, not the potentially long initial model download/load.
+  A timed-out native ONNX inference may still finish in the background because
+  the package exposes no per-call cancellation. Startup failure aborts startup.
+  `--check-config` validates the Laya settings without downloading or opening a
+  model.
 
 ### Policy
 
@@ -140,8 +157,10 @@ benchmark:
 - Benchmark paths resolve relative to the configuration file.
 - The results directory must not be the audit database directory.
 - `seed` is a non-negative 32-bit integer.
-- Jev mode requires its credential. No-semantic and deterministic-only modes reject
-  accidental provider access and must run without it.
+- Jev mode requires its credential. Laya mode requires an explicitly selected
+  Laya provider and performs model loading only in an opt-in gateway/benchmark
+  run. No-semantic and deterministic-only modes reject accidental provider access
+  and must run without credentials, model loading, or inference.
 
 ## Secret Resolution
 
@@ -149,3 +168,20 @@ The only provider secret is `TYPESAFE_API_KEY`. The loader validates that it exi
 when required but passes the value directly to the provider constructor without
 placing it in normalized configuration. Configuration hashes replace all secret
 references with their environment variable names and never hash secret values.
+Laya has no gateway credential. Do not expose the package's optional Hugging Face
+token setting in gateway configuration; a local `modelDir` is the offline path.
+
+## Optional Laya Example
+
+Replace the `provider` block above while retaining the same `policy` block:
+
+```yaml
+provider:
+  type: laya
+  modelDir: ./models/laya-onnx
+  timeoutMs: 10000
+```
+
+Without `modelDir`, first opt-in startup may download approximately 1.7 GB into
+the package cache (override with `cacheDir`); reserve roughly 2 GB-plus RAM.
+Neither normal CI nor the default Docker image includes model weights.

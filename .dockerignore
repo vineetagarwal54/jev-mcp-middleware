@@ -1,0 +1,14 @@
+node_modules/
+.tools/
+.git/
+dist/
+build/
+coverage/
+.env*
+*.log*
+*.db*
+*.sqlite*
+data/
+config/*.yaml
+!config/example.yaml
+benchmarks/results/
