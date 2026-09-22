@@ -4,27 +4,53 @@ import type { AuditEvent } from '../audit/AuditEvent.js';
 import { newCorrelationId } from '../logging/logger.js';
 import type { ToolCatalog } from './toolCatalog.js';
 import type { UpstreamClient } from './upstreamClient.js';
+import { configSchema, type GatewayConfig } from '../config/schema.js';
+import type { DecisionProvider } from '../decision/DecisionProvider.js';
+import type { ProviderEvaluation } from '../decision/types.js';
+import { evaluateProvider } from '../decision/evaluateProvider.js';
+import { evaluateBeforeProvider, evaluatePolicy } from '../policy/policyEngine.js';
+import { gatewayError, policyError } from './errors.js';
+import { sanitize } from '../security/sanitize.js';
 
 interface RouterDependencies {
   readonly upstream: UpstreamClient;
   readonly catalog: ToolCatalog;
   readonly configurationId: string;
   readonly audit: (event: AuditEvent) => void;
+  readonly config?: GatewayConfig;
+  readonly provider?: DecisionProvider;
 }
 export type ToolRouter = (params: CallToolRequestParams, signal?: AbortSignal) => Promise<CallToolResult>;
 const elapsed = (start: number): number => Math.max(0, Math.round(performance.now() - start));
 
-/** US1 only: startup explicitly restricts this route to provider:none and no hard rules. */
-export function createRouter({ upstream, catalog, configurationId, audit }: RouterDependencies): ToolRouter {
+export function createRouter({ upstream, catalog, configurationId, audit, provider, config = configSchema.parse({ version: 1, upstream: { command: 'node' } }) }: RouterDependencies): ToolRouter {
   return async (params, signal) => {
     const started = performance.now();
     const correlationId = newCorrelationId();
     const validationStatus = catalog.validate(params.name, params.arguments);
     let upstreamOutcome: AuditEvent['upstreamOutcome'] = { status: 'NOT_ATTEMPTED' };
     const valid = validationStatus === 'VALID';
+    const description = catalog.description(params.name);
+    const sanitized = sanitize({ toolName: validationStatus === 'UNKNOWN_TOOL' ? '[UNKNOWN_TOOL]' : params.name,
+      ...(description === undefined ? {} : { toolDescription: description }), ...(params.arguments === undefined ? {} : { arguments: params.arguments }) }, config.sanitization);
+    let providerEvaluation: ProviderEvaluation | undefined;
+    let policyDecision: AuditEvent['policyDecision'] = { outcome: 'DENY', source: 'VALIDATION', reasonCodes: [validationStatus], policyLatencyMs: 0, configurationId };
     try {
-      if (!valid) return { isError: true, content: [{ type: 'text', text: 'Invalid tool call.' }] };
-      if (signal?.aborted) return { isError: true, content: [{ type: 'text', text: 'Call cancelled.' }] };
+      if (!valid) return policyError(policyDecision, correlationId);
+      if (signal?.aborted) return gatewayError('ABORTED');
+      const policyStarted = performance.now();
+      let decision = evaluateBeforeProvider(config.policy, params.name, params.arguments, provider !== undefined);
+      let policyLatencyMs = elapsed(policyStarted);
+      if (!decision && provider) {
+        providerEvaluation = await evaluateProvider(provider, sanitized, config.provider.timeoutMs, signal);
+        const finishStarted = performance.now();
+        decision = evaluatePolicy(config.policy, providerEvaluation);
+        policyLatencyMs += elapsed(finishStarted);
+      }
+      if (!decision) throw new Error('Missing deterministic decision');
+      policyDecision = { ...decision, policyLatencyMs, configurationId };
+      if (policyDecision.outcome !== 'ALLOW') return policyError(policyDecision, correlationId);
+      if (signal?.aborted) return gatewayError('ABORTED');
       const upstreamStarted = performance.now();
       try {
         const result = await upstream.callTool(params, signal);
@@ -32,14 +58,13 @@ export function createRouter({ upstream, catalog, configurationId, audit }: Rout
         return result;
       } catch (error) {
         upstreamOutcome = { status: signal?.aborted ? 'ABORTED' : error instanceof ProtocolError ? 'PROTOCOL_ERROR' : 'TRANSPORT_ERROR', latencyMs: elapsed(upstreamStarted) };
-        return { isError: true, content: [{ type: 'text', text: 'Upstream call failed.' }] };
+        return gatewayError('UPSTREAM_FAILURE');
       }
     } finally {
-      // Raw arguments, result content and exception text are deliberately absent.
+      // Only the sanitized copy crosses the audit boundary; results/errors remain ephemeral.
       audit({ schemaVersion: 1, eventId: randomUUID(), correlationId, occurredAt: new Date().toISOString(),
-        toolName: validationStatus === 'UNKNOWN_TOOL' ? '[UNKNOWN_TOOL]' : params.name, validationStatus,
-        policyDecision: { outcome: valid ? 'ALLOW' : 'DENY', source: valid ? 'NO_PROVIDER' : 'VALIDATION',
-          reasonCodes: [valid ? 'NO_PROVIDER' : validationStatus], policyLatencyMs: 0, configurationId },
+        toolName: sanitized.toolName, ...(sanitized.arguments === undefined ? {} : { sanitizedArguments: sanitized.arguments }), validationStatus,
+        policyDecision, ...(providerEvaluation ? { providerEvaluation } : {}),
         upstreamOutcome, totalLatencyMs: elapsed(started), configurationId });
     }
   };

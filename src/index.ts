@@ -1,6 +1,8 @@
 import { pathToFileURL } from 'node:url';
+import { parseArgs } from 'node:util';
 import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
-import { loadConfig, configurationId } from './config/loadConfig.js';
+import { loadConfig, configurationId, validateProviderConfiguration } from './config/loadConfig.js';
+import { JevDecisionProvider } from './decision/JevDecisionProvider.js';
 import { createLogger } from './logging/logger.js';
 import { AuditRepository } from './audit/AuditRepository.js';
 import { createAuditService } from './audit/auditService.js';
@@ -12,9 +14,8 @@ import { createGatewayServer } from './mcp/gatewayServer.js';
 
 export async function startGateway(configPath: string): Promise<() => Promise<void>> {
   const config = loadConfig(configPath);
-  if (config.provider.type !== 'none' || config.policy.hardRules.length || config.policy.noProviderOutcome !== 'ALLOW') {
-    throw new Error('This US1 increment supports only provider:none, no hard rules and noProviderOutcome:ALLOW');
-  }
+  validateProviderConfiguration(config);
+  const provider = config.provider.type === 'jev' ? new JevDecisionProvider(config.provider) : undefined;
   const logger = createLogger(config.logging.level);
   const upstream = new UpstreamClient(config.upstream.requestTimeoutMs);
   const repository = new AuditRepository(config.audit.sqlitePath, config.audit.busyTimeoutMs);
@@ -28,12 +29,12 @@ export async function startGateway(configPath: string): Promise<() => Promise<vo
   try {
     await upstream.connect(createUpstreamTransport(config.upstream));
     const catalog = new ToolCatalog(await upstream.listTools());
-    const route = createRouter({ upstream, catalog, configurationId: configurationId(config), audit: createAuditService(repository, logger) });
+    const route = createRouter({ upstream, catalog, config, ...(provider ? { provider } : {}), configurationId: configurationId(config), audit: createAuditService(repository, logger) });
     // The SDK may replace a server instance during protocol negotiation; only
     // process/transport shutdown should close the shared upstream connection.
     handle = serveStdio(() => createGatewayServer(catalog, route),
       { onerror: () => logger.error({ event: 'downstream_protocol_error' }) });
-    logger.info({ event: 'gateway_started', mode: 'transparent_proxy', providerFailureOutcome: config.policy.providerFailureOutcome });
+    logger.info({ event: 'gateway_started', provider: config.provider.type, providerFailureOutcome: config.policy.providerFailureOutcome });
     return shutdown;
   } catch (error) { await shutdown(); throw error; }
 }
@@ -41,14 +42,25 @@ export async function startGateway(configPath: string): Promise<() => Promise<vo
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const logger = createLogger();
   try {
-    if (process.argv.length !== 4 || process.argv[2] !== '--config' || !process.argv[3]) throw new Error('Usage');
-    const shutdown = await startGateway(process.argv[3]);
-    const stop = () => { void shutdown().catch(() => { process.exitCode = 1; }); };
-    process.once('SIGINT', stop);
-    process.once('SIGTERM', stop);
-    process.stdin.once('end', stop);
+    const { values } = parseArgs({ options: { config: { type: 'string' }, 'check-config': { type: 'boolean' }, help: { type: 'boolean' } } });
+    if (values.help) {
+      process.stderr.write('Usage: node dist/index.js --config <gateway.yaml> [--check-config]\nResearch tooling only; not a production security guarantee.\n');
+    } else {
+      if (!values.config) throw new Error('Configuration required');
+      if (values['check-config']) {
+        const config = loadConfig(values.config);
+        validateProviderConfiguration(config);
+        logger.info({ event: 'configuration_valid', configurationId: configurationId(config), providerFailureOutcome: config.policy.providerFailureOutcome });
+      } else {
+        const shutdown = await startGateway(values.config);
+        const stop = () => { void shutdown().catch(() => { process.exitCode = 1; }); };
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+        process.stdin.once('end', stop);
+      }
+    }
   } catch {
-    logger.error({ event: 'gateway_startup_failed', hint: 'Use --config <path>; verify configuration, supported US1 mode, upstream and audit storage' });
+    logger.error({ event: 'gateway_startup_failed', hint: 'Use --config <path>; verify configuration, provider credential, upstream and audit storage' });
     process.exitCode = 1;
   }
 }

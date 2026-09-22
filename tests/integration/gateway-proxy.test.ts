@@ -24,7 +24,7 @@ it('proxies a fixed catalog and unchanged calls/results, rejects bad arguments, 
     await gateway.connect(gatewayTransport);
     await host.connect(hostTransport);
     expect((await host.listTools()).tools).toEqual(fakeTools);
-    const params = { name: 'echo', arguments: { text: 'private-input' } };
+    const params = { name: 'echo', arguments: { text: 'Bearer private-input' } };
     expect(await host.callTool(params)).toEqual(result);
     expect(fake.calls).toEqual([params]);
     expect(await host.callTool({ name: 'echo', arguments: { text: 42 } })).toMatchObject({ isError: true });

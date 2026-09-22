@@ -19,7 +19,7 @@ it('runs host → gateway → upstream over stdio with protocol-only stdout and 
   try {
     await client.connect(transport);
     expect((await client.listTools()).tools.map(t => t.name)).toEqual(['echo']);
-    expect(await client.callTool({ name: 'echo', arguments: { text: 'stdio-secret-canary' } })).toMatchObject({ content: [{ type: 'text', text: 'stdio-secret-canary' }] });
+    expect(await client.callTool({ name: 'echo', arguments: { text: 'Bearer stdio-secret-canary' } })).toMatchObject({ content: [{ type: 'text', text: 'Bearer stdio-secret-canary' }] });
     expect(protocolErrors).toEqual([]);
   } finally { await client.close(); await rm(directory, { recursive: true, force: true }); }
   expect(stderr).toContain('tool_decision');

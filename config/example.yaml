@@ -1,10 +1,10 @@
-# US1 transparent-proxy increment. No policy or semantic protection is active yet.
+# Developer/research tooling, not a production security boundary.
 # Paths are relative to this configuration file. Replace command/args for your server.
 version: 1
 upstream:
   transport: stdio
   command: node
-  args: [--import, tsx, tests/fixtures/fakeMcpServer.ts]
+  args: [tests/fixtures/fakeMcpServer.ts]
   cwd: ..
   envPassthrough: []
   requestTimeoutMs: 30000
@@ -13,9 +13,24 @@ provider:
 policy:
   noProviderOutcome: ALLOW
   providerFailureOutcome: DENY
-  hardRules: []
+  hardRules:
+    - id: deny-delete
+      tool: '*.delete'
+      outcome: DENY
+    - id: deny-echo
+      tool: echo
+      arguments: [{pointer: /text, operator: glob, value: 'DENY *'}]
+      outcome: DENY
+    - id: review-echo
+      tool: echo
+      arguments: [{pointer: /text, operator: glob, value: 'REVIEW *'}]
+      outcome: REVIEW
 audit:
   sqlitePath: ../data/audit.db
   busyTimeoutMs: 5000
 logging:
   level: info
+benchmark:
+  datasetPath: ../benchmarks/datasets/v0.1.jsonl
+  resultsDirectory: ../benchmarks/results
+  seed: 1

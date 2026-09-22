@@ -4,7 +4,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
 export const fakeTools: Tool[] = [{
   name: 'echo', description: 'Echo a text value',
-  inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'], additionalProperties: false },
+  inputSchema: { type: 'object', properties: { text: { type: 'string' }, nested: { type: 'object' } }, required: ['text'], additionalProperties: false },
 }];
 export function createFakeMcpServer(options: { result?: CallToolResult; error?: Error } = {}) {
   const calls: CallToolRequestParams[] = [];

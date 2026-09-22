@@ -14,6 +14,7 @@ export class ToolCatalog {
     }
   }
   list(): Tool[] { return structuredClone(this.tools); }
+  description(name: string): string | undefined { return this.tools.find(tool => tool.name === name)?.description; }
   validate(name: string, args: unknown): 'VALID' | 'UNKNOWN_TOOL' | 'INVALID_ARGUMENTS' {
     const validator = this.validators.get(name);
     if (!validator) return 'UNKNOWN_TOOL';

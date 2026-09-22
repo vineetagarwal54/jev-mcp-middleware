@@ -1,6 +1,6 @@
 # Quickstart Validation Guide: MCP Policy Gateway v0.1
 
-This guide validates the planned gateway after implementation. It uses the mock
+This guide validates the implemented gateway. It uses the mock
 provider and fake upstream for the required keyless path; Jev validation is an
 optional final step.
 
@@ -37,22 +37,21 @@ the committed lockfile, and type checking emits no files.
 ## 2. Validate Configuration
 
 ```powershell
-npm run start -- --config config/example.yaml --check-config
+node dist/index.js --config config/example.yaml --check-config
 ```
 
 Expected outcome: the command reports the normalized configuration ID and exits
-without starting MCP. It does not print environment values, the TypeSafe key, or
+on stderr without starting MCP or opening SQLite. It does not print environment values, the TypeSafe key, or
 raw configuration content.
 
 Negative validation:
 
 ```powershell
-npm run test:unit -- tests/unit/config
+npm exec vitest run tests/unit/config
 ```
 
-Expected outcome: tests prove that unknown keys, unsafe YAML, invalid thresholds,
-invalid hard-rule predicates, missing upstream commands, and embedded provider
-credentials fail before the gateway accepts calls.
+Expected outcome: representative invalid YAML, unknown keys, out-of-range settings
+and embedded provider credentials fail before the gateway accepts calls.
 
 ## 3. Run the Keyless Test Suite
 
@@ -63,23 +62,23 @@ Remove-Item Env:TYPESAFE_API_KEY -ErrorAction SilentlyContinue
 npm run test:keyless
 ```
 
-Expected outcome: unit, contract, and integration suites pass without external
+Expected outcome: unit and integration suites pass without external
 network access. The run includes:
 
 - upstream catalog snapshot and schema validation;
 - exact `ALLOW` forwarding and unchanged result/error return;
 - hard-rule precedence;
 - semantic threshold decisions from the mock provider;
-- explicit provider timeout, unavailable, invalid, partial, and abort behavior;
+- representative explicit provider failure and malformed-response behavior;
 - zero upstream calls for validation denial, `REVIEW`, and `DENY`;
 - nested secret removal from provider input, audit rows, and logs;
 - exactly one audit event per intercepted call; and
 - stdio subprocess checks proving stdout contains protocol bytes only.
 
-## 4. Prove Non-Forwarding Under Load
+## 4. Prove Representative Concurrent Non-Forwarding
 
 ```powershell
-npm run test:integration -- tests/integration/gateway-non-forwarding.test.ts
+npm exec vitest run tests/integration/gateway-policy.test.ts
 ```
 
 Expected outcome: the fake upstream receives zero calls for representative denied
@@ -90,14 +89,13 @@ from the downstream response.
 ## 5. Validate Audit Persistence
 
 ```powershell
-npm run test:integration -- tests/integration/gateway-audit.test.ts
+npm exec vitest run tests/integration/gateway-semantic-audit.test.ts
 ```
 
-Expected outcome: a temporary file-backed SQLite database is migrated, reopened,
-and queried successfully. Rows validate against
-`contracts/audit-event.schema.json`; forbidden values are absent. A forced SQLite
-write failure produces a sanitized stderr operational event and is not reported as
-successful persistence.
+Expected outcome: an isolated SQLite database stores one sanitized event per call;
+forbidden canary values are absent. A separate repository smoke test covers initial
+schema creation, insert/read, and an observable insert failure. There is no
+exhaustive WAL/reopen test matrix.
 
 ## 6. Run Keyless Benchmarks
 
@@ -111,7 +109,9 @@ Expected outcome: each command writes a versioned result under
 `contracts/benchmark-result.schema.json` and identify the dataset hash,
 configuration ID, runtime, seed, outcome/forwarding accuracy, error counts, and
 p50/p95/p99 latency. Neither mode reads a TypeSafe credential or accesses the
-network.
+network. No-provider modes report no signal predictions: `signals: {}` and
+`macroF1: 0` are not-applicable placeholders, not model-quality scores. The
+scripted-provider integration test checks metric calculations separately.
 
 ## 7. Run the Gateway Through an MCP Host
 
@@ -123,6 +123,9 @@ node <absolute-repository-path>/dist/index.js
 ```
 
 The host must provide the gateway process with stdin/stdout as its MCP transport.
+Use Node directly, not npm, whose command banner can corrupt MCP stdout. The
+sample exposes `echo`: text beginning `DENY ` is denied, `REVIEW ` requires review,
+and other text is allowed.
 Expected outcome:
 
 1. The host lists the fake/configured upstream tools.
@@ -144,7 +147,7 @@ docker run --rm jev-mcp-middleware:v0.1 --config /app/config/example.yaml --chec
 Expected outcome: the image builds from the lockfile, runs as a non-root user, and
 validates configuration. For real gateway use, launch the image with interactive
 stdin and mount the config, upstream executable/resources, and `/app/data` audit
-directory explicitly.
+directory explicitly. The image includes the fake upstream for the example config.
 
 ## 9. Optional Jev Validation
 
@@ -160,7 +163,9 @@ Expected outcome: the result separates six semantic signal metrics from final
 deterministic policy accuracy and reports provider/decision latency. Provider
 requests contain only tool name, public description, and sanitized arguments. The
 key does not appear in stdout, stderr, SQLite, configuration IDs, or benchmark
-artifacts.
+artifacts. Inspect coverage and error counts: hard-rule cases skip Jev and failed
+provider calls have no signal prediction. The tiny synthetic dataset is research
+infrastructure, not statistically meaningful security evidence.
 
 ## 10. Final Phase Gate
 
