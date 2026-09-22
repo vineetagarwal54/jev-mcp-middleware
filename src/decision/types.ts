@@ -30,7 +30,7 @@ const metadata = {
   provider: z.string().regex(/^[a-zA-Z0-9_.-]{1,64}$/), latencyMs: z.number().int().min(0),
   requestId: z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/).optional(), model: z.string().regex(/^[a-zA-Z0-9_.:/-]{1,128}$/).optional(),
   usage: z.strictObject({ inputTokens: z.number().int().min(0), outputTokens: z.number().int().min(0) }).optional(),
-  reasonCode: z.enum(['PROVIDER_TIMEOUT', 'PROVIDER_UNAVAILABLE', 'PROVIDER_INVALID_RESPONSE', 'PROVIDER_ABORTED', 'PROVIDER_INTERNAL_ERROR']).optional(),
+  reasonCode: z.enum(['PROVIDER_TIMEOUT', 'PROVIDER_UNAVAILABLE', 'PROVIDER_INVALID_RESPONSE', 'PROVIDER_ABORTED', 'PROVIDER_CONTEXT_LIMIT', 'PROVIDER_INTERNAL_ERROR']).optional(),
 };
 export const providerEvaluationSchema = z.discriminatedUnion('status', [
   z.strictObject({ ...metadata, status: z.literal('SUCCESS'), signals: riskSignalsSchema }),

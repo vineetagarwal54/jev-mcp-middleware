@@ -13,6 +13,34 @@ const predicate = z.discriminatedUnion('operator', [
 const threshold = z.number().min(0).max(1).nullable();
 const thresholds = z.strictObject({ destructive: threshold, externalConsequence: threshold, sensitive: threshold, irreversible: threshold, highImpact: threshold, humanReview: threshold });
 const allThresholds = (value: number) => ({ destructive: value, externalConsequence: value, sensitive: value, irreversible: value, highImpact: value, humanReview: value });
+const providerTimeout = bounded(60000);
+const retrySchema = z.strictObject({
+  maxRetries: z.number().int().min(0).max(5).default(0),
+  initialDelayMs: bounded(60000).default(500),
+  maxDelayMs: bounded(60000).default(5000),
+}).refine(retry => retry.maxDelayMs >= retry.initialDelayMs).prefault({});
+const noProviderSchema = z.strictObject({
+  type: z.enum(['none', 'mock']).default('none'),
+  model: z.string().min(1).default('jev-latest'),
+  timeoutMs: providerTimeout.default(3000),
+  retry: retrySchema,
+});
+export const jevProviderSchema = z.strictObject({
+  type: z.literal('jev'),
+  model: z.string().min(1).default('jev-latest'),
+  timeoutMs: providerTimeout.default(3000),
+  retry: retrySchema,
+});
+export const layaProviderSchema = z.strictObject({
+  type: z.literal('laya'),
+  timeoutMs: providerTimeout.default(10000),
+  modelDir: z.string().min(1).optional(),
+  cacheDir: z.string().min(1).optional(),
+  subfolder: z.string().min(1).optional(),
+  revision: z.string().min(1).optional(),
+}).refine(config => config.modelDir === undefined ||
+  (config.cacheDir === undefined && config.subfolder === undefined && config.revision === undefined));
+const providerSchema = z.union([jevProviderSchema, layaProviderSchema, noProviderSchema]).prefault({});
 export const configSchema = z.strictObject({
   version: z.literal(1),
   upstream: z.strictObject({
@@ -20,11 +48,7 @@ export const configSchema = z.strictObject({
     envPassthrough: z.array(z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/)).refine(names => new Set(names).size === names.length).default([]),
     requestTimeoutMs: bounded(300000).default(30000),
   }),
-  provider: z.strictObject({
-    type: z.enum(['none', 'mock', 'jev']).default('none'), model: z.string().min(1).default('jev-latest'), timeoutMs: bounded(60000).default(3000),
-    retry: z.strictObject({ maxRetries: z.number().int().min(0).max(5).default(0), initialDelayMs: bounded(60000).default(500), maxDelayMs: bounded(60000).default(5000) })
-      .refine(r => r.maxDelayMs >= r.initialDelayMs).prefault({}),
-  }).prefault({}),
+  provider: providerSchema,
   policy: z.strictObject({
     noProviderOutcome: outcome.default('ALLOW'), providerFailureOutcome: outcome.default('DENY'),
     semanticEligibility: z.strictObject({ includeTools: z.array(pattern).default(['*']), excludeTools: z.array(pattern).default([]) }).prefault({}),
@@ -39,3 +63,5 @@ export const configSchema = z.strictObject({
   benchmark: z.strictObject({ datasetPath: z.string().min(1), resultsDirectory: z.string().min(1), seed: z.number().int().min(0).max(2147483647).default(1) }).optional(),
 });
 export type GatewayConfig = z.infer<typeof configSchema>;
+export type JevProviderConfig = z.infer<typeof jevProviderSchema>;
+export type LayaProviderConfig = z.infer<typeof layaProviderSchema>;

@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { serveStdio, type StdioServerHandle } from '@modelcontextprotocol/server/stdio';
 import { loadConfig, configurationId, validateProviderConfiguration } from './config/loadConfig.js';
-import { JevDecisionProvider } from './decision/JevDecisionProvider.js';
+import { createDecisionProvider, type DecisionProviderHandle } from './decision/createDecisionProvider.js';
 import { createLogger } from './logging/logger.js';
 import { AuditRepository } from './audit/AuditRepository.js';
 import { createAuditService } from './audit/auditService.js';
@@ -15,21 +15,26 @@ import { createGatewayServer } from './mcp/gatewayServer.js';
 export async function startGateway(configPath: string): Promise<() => Promise<void>> {
   const config = loadConfig(configPath);
   validateProviderConfiguration(config);
-  const provider = config.provider.type === 'jev' ? new JevDecisionProvider(config.provider) : undefined;
   const logger = createLogger(config.logging.level);
   const upstream = new UpstreamClient(config.upstream.requestTimeoutMs);
-  const repository = new AuditRepository(config.audit.sqlitePath, config.audit.busyTimeoutMs);
+  let providerHandle: DecisionProviderHandle | undefined;
+  let repository: AuditRepository | undefined;
   let handle: StdioServerHandle | undefined;
   let closing: Promise<void> | undefined;
   const shutdown = (): Promise<void> => closing ??= (async () => {
     try { await handle?.close(); } finally {
-      try { await upstream.close(); } finally { repository.close(); }
+      try { await upstream.close(); } finally {
+        try { repository?.close(); } finally { await providerHandle?.close(); }
+      }
     }
   })();
   try {
+    providerHandle = await createDecisionProvider(config.provider);
+    repository = new AuditRepository(config.audit.sqlitePath, config.audit.busyTimeoutMs);
     await upstream.connect(createUpstreamTransport(config.upstream));
     const catalog = new ToolCatalog(await upstream.listTools());
-    const route = createRouter({ upstream, catalog, config, ...(provider ? { provider } : {}), configurationId: configurationId(config), audit: createAuditService(repository, logger) });
+    const route = createRouter({ upstream, catalog, config, ...(providerHandle.provider ? { provider: providerHandle.provider } : {}),
+      configurationId: configurationId(config), audit: createAuditService(repository, logger) });
     // The SDK may replace a server instance during protocol negotiation; only
     // process/transport shutdown should close the shared upstream connection.
     handle = serveStdio(() => createGatewayServer(catalog, route),

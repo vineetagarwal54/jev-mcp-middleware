@@ -3,10 +3,12 @@
 A protocol-first MCP stdio gateway for researching semantic tool-call gating.
 Connect an MCP host to the gateway instead of directly to an upstream server.
 The gateway snapshots tools, validates arguments, applies hard rules, optionally
-asks TypeSafe Jev for six risk signals, and makes a deterministic policy decision.
+asks TypeSafe Jev or local Laya for six risk signals, and makes a deterministic
+policy decision.
 
 **Developer tooling and research infrastructure—not a production security boundary
-or guarantee.** Jev is advisory. Model output never directly authorizes a call.
+or guarantee.** Jev and Laya are advisory. Model output never directly authorizes
+a call.
 
 ## Run locally
 
@@ -78,8 +80,8 @@ MCP host → gateway validation → hard rules → sanitized DecisionProvider in
 
 Focused modules live in `src/mcp`, `src/policy`, `src/decision`, `src/security`,
 `src/audit`, `src/config`, and `src/benchmark`. The `DecisionProvider` interface
-returns only six bounded signals and typed failures. Both mock and Jev implement
-it; another provider can be added without changing deterministic policy.
+returns only six bounded signals and typed failures. Mock, Jev, and Laya implement
+it without changing deterministic policy.
 
 ## Enable Jev
 
@@ -110,6 +112,50 @@ Jev answers six narrow questions: destructive, external consequence, sensitive,
 irreversible, high impact, and appropriate for human review. See the
 [provider contract](specs/001-mcp-policy-gateway/contracts/decision-provider.md).
 
+## Enable local Laya (opt-in)
+
+Laya runs locally through `@receptron/laya` and ONNX Runtime. It has no gateway
+credential. The default English ONNX bundle is approximately 1.7 GB, first use may
+download it from Hugging Face, and a loaded session needs roughly 2 GB of RAM plus
+inference overhead. Normal tests, CI, and the default Docker image neither download
+nor bundle model weights and never execute real Laya inference.
+
+For a previously downloaded complete bundle, use an ignored local configuration:
+
+```yaml
+provider:
+  type: laya
+  modelDir: ./models/laya-onnx
+  timeoutMs: 10000
+policy:
+  noProviderOutcome: ALLOW
+  providerFailureOutcome: DENY
+```
+
+`modelDir` resolves relative to the YAML file and is the recommended offline path.
+To let the package download/cache a published checkpoint instead, omit `modelDir`
+and optionally set `cacheDir`, `subfolder`, and `revision`:
+
+```yaml
+provider:
+  type: laya
+  cacheDir: ./data/laya-cache
+  subfolder: multilingual
+  revision: main
+  timeoutMs: 10000
+```
+
+Do not combine `modelDir` with the cache/checkpoint fields. The gateway loads one
+session before accepting MCP calls, reuses it, and closes it on shutdown. The
+evaluation timeout does not cancel native ONNX work already in progress.
+
+The base English checkpoint has a much smaller context than Jev. Before inference,
+the adapter uses the selected bundle's tokenizer and context settings to ensure
+the complete sanitized state fits. It returns `PROVIDER_CONTEXT_LIMIT` through the
+configured provider-failure policy instead of accepting Laya's silent state
+truncation. Accepted state and all six shared Noul instructions are identical to
+the Jev benchmark input; all six questions run in one `systemOne` call.
+
 ## Sanitization and audit
 
 Provider state is allowlisted to tool name, public description and recursively
@@ -138,13 +184,16 @@ audit file yourself; benign argument content is retained after sanitization.
 npm run benchmark -- --config config/example.yaml --mode no-semantic-gate
 npm run benchmark -- --config config/example.yaml --mode deterministic-only
 # Opt-in only: requires TYPESAFE_API_KEY; sends sanitized synthetic cases to Jev.
-npm run benchmark -- --config config/example.yaml --mode jev
+npm run benchmark -- --config config/local-jev.yaml --mode jev
+# Opt-in only: loads the configured local/cached Laya model.
+npm run benchmark -- --config config/local-laya.yaml --mode laya
 ```
 
 The harness runs a 12-case labelled synthetic dataset through the same router and
 an in-memory official-SDK fake upstream; it does not execute real operations.
 No-gate disables hard rules and providers. Deterministic-only retains configured
-rules without constructing a provider. Jev retains hard rules and evaluates only
+rules without constructing a provider. Jev and Laya retain the same hard rules,
+eligibility, sanitizer, questions, thresholds, and labels, and evaluate only
 eligible cases. Programmatic `runBenchmark({mode: 'PROVIDER', provider, ...})`
 supports mocks and future LLM baselines; v0.1 does not ship an LLM adapter.
 
@@ -159,14 +208,19 @@ comparing scores. `counts.semanticEvaluated` is the number of provider calls,
 `semanticSkipped` is the number without a provider call, `semanticPredicted` counts
 successful signal sets, and `providerErrors` counts failed evaluations. Macro F1
 uses only cases with successful signal predictions, so compare it alongside these
-coverage counts. `unexpectedForwarding` means forwarding against the dataset's
+coverage counts. `contextRejected` counts Laya inputs rejected before inference
+to prevent silent truncation. `unexpectedForwarding` means forwarding against the dataset's
 expected outcome, not forwarding a gateway DENY decision.
 
 Latency is measured in rounded milliseconds without pass/fail performance gates;
 fast local stages can read zero. Decision latency excludes upstream call time.
-The seed is recorded; cases run in fixed file order. This tiny, hand-labelled
+For Laya, `providerInitializationMs` reports download/cache verification, model
+load, and context-probe initialization separately; warm provider p50/p95/p99 do
+not include it. Jev latency remains its remote evaluation latency. The seed is
+recorded; cases run in fixed file order. This tiny, hand-labelled
 dataset is illustrative, not a statistically meaningful safety evaluation. No
-live Jev quality result is claimed by the keyless test suite.
+live Jev or Laya quality result is claimed by the keyless test suite, and no
+provider speed or quality comparison should be inferred from its 12 cases.
 
 ## Tests and Docker
 
@@ -187,7 +241,10 @@ upstream and runs as the non-root `node` user. Mount a writable `/app/data` for
 persistent audit data and mount a custom config/upstream for real use. Do not use
 a TTY for MCP. Use `--entrypoint node` and `dist/benchmark/runBenchmark.js` to run
 the compiled benchmark in the image. GitHub Actions checks lint, typecheck, keyless
-tests, build and Docker build without TypeSafe credentials.
+tests, build and Docker build without TypeSafe credentials, Laya model access,
+Hugging Face access, or ONNX inference. For an opt-in Laya container run, mount a
+local model bundle/cache and matching local configuration and allocate sufficient
+memory; model weights are intentionally absent from the image.
 
 v0.1 supports one downstream stdio session and one upstream stdio server with a
 startup-only catalog snapshot. No OAuth federation, dashboard, multitenancy,

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { gatewayHarness } from '../fixtures/gatewayHarness.js';
 import { configSchema } from '../../src/config/schema.js';
-import { MockDecisionProvider } from '../../src/decision/MockDecisionProvider.js';
+import { LayaDecisionProvider, type LayaClient } from '../../src/decision/LayaDecisionProvider.js';
 import { vi } from 'vitest';
 
 it('never forwards hard DENY, semantic DENY, REVIEW or failed decisions, including concurrent calls', async () => {
@@ -9,15 +9,27 @@ it('never forwards hard DENY, semantic DENY, REVIEW or failed decisions, includi
     { id: 'block', tool: 'echo', arguments: [{ pointer: '/text', operator: 'glob', value: 'blocked*' }], outcome: 'DENY' },
   ] } });
   const signals = { destructive: 0, externalConsequence: 0, sensitive: 0, irreversible: 0, highImpact: 0, humanReview: 0 };
-  const provider = new MockDecisionProvider([
-    ...[0.95, 0.6, 0.1].map(score => ({ provider: 'mock', status: 'SUCCESS' as const, signals: { ...signals, destructive: score }, latencyMs: 0 })),
-    { provider: 'mock', status: 'UNAVAILABLE', latencyMs: 1 },
-  ]);
+  const scores = [0.95, 0.6, 0.1];
+  const providerCalls: unknown[] = [];
+  const client: LayaClient = { systemOne: async state => {
+    providerCalls.push(state);
+    const score = scores.shift();
+    if (score === undefined) throw new Error('local inference unavailable');
+    return { model: 'laya', usage: { input_tokens: 10, output_tokens: 0 }, answers: {
+      destructive: { type: 'noul', noul: score },
+      external_consequence: { type: 'noul', noul: signals.externalConsequence },
+      sensitive: { type: 'noul', noul: signals.sensitive },
+      irreversible: { type: 'noul', noul: signals.irreversible },
+      high_impact: { type: 'noul', noul: signals.highImpact },
+      human_review: { type: 'noul', noul: signals.humanReview },
+    } };
+  } };
+  const provider = new LayaDecisionProvider(client, () => true);
   const h = await gatewayHarness({ config, provider });
   try {
     const blocked = await Promise.all(Array.from({ length: 8 }, (_, i) => h.host.callTool({ name: 'echo', arguments: { text: `blocked-${i}` } })));
     expect(blocked.every(r => r.isError)).toBe(true);
-    expect(provider.calls).toHaveLength(0);
+    expect(providerCalls).toHaveLength(0);
     expect(h.fake.calls).toHaveLength(0);
     for (const outcome of ['DENY', 'REVIEW', 'ALLOW', 'DENY']) {
       const result = await h.host.callTool({ name: 'echo', arguments: { text: 'eligible' } });
@@ -25,6 +37,7 @@ it('never forwards hard DENY, semantic DENY, REVIEW or failed decisions, includi
       if (outcome !== 'ALLOW') expect(result._meta?.['dev.jev-mcp-middleware/decision']).toMatchObject({ outcome });
     }
     expect(h.fake.calls).toEqual([{ name: 'echo', arguments: { text: 'eligible' } }]);
+    expect(providerCalls).toHaveLength(4);
     expect(h.events.filter(e => e.policyDecision.outcome !== 'ALLOW').every(e => e.upstreamOutcome.status === 'NOT_ATTEMPTED')).toBe(true);
   } finally { await h.close(); }
 });

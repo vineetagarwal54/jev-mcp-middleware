@@ -12,6 +12,10 @@ export function parseConfig(yaml: string, directory: string): GatewayConfig {
     config.upstream.cwd = resolve(directory, config.upstream.cwd);
     if (!statSync(config.upstream.cwd).isDirectory()) throw new Error();
     if (config.audit.sqlitePath !== ':memory:') config.audit.sqlitePath = resolve(directory, config.audit.sqlitePath);
+    if (config.provider.type === 'laya') {
+      if (config.provider.modelDir !== undefined) config.provider.modelDir = resolve(directory, config.provider.modelDir);
+      if (config.provider.cacheDir !== undefined) config.provider.cacheDir = resolve(directory, config.provider.cacheDir);
+    }
     if (config.benchmark) {
       config.benchmark.datasetPath = resolve(directory, config.benchmark.datasetPath);
       config.benchmark.resultsDirectory = resolve(directory, config.benchmark.resultsDirectory);

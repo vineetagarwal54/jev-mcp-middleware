@@ -52,7 +52,7 @@
     "counts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "completed", "errors", "semanticEvaluated", "semanticSkipped", "semanticPredicted", "providerErrors", "forwarded", "unexpectedForwarding"],
+      "required": ["total", "completed", "errors", "semanticEvaluated", "semanticSkipped", "semanticPredicted", "providerErrors", "contextRejected", "forwarded", "unexpectedForwarding"],
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
         "completed": { "type": "integer", "minimum": 0 },
@@ -82,7 +82,7 @@
     "latency": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["providerMs", "decisionMs"],
+      "required": ["providerMs", "providerInitializationMs", "decisionMs"],
       "properties": {
         "providerMs": { "$ref": "#/$defs/percentiles" },
         "providerInitializationMs": { "type": "number", "minimum": 0, "description": "Startup/model-load time, excluded from warm providerMs percentiles. Required in new LAYA reports." },
