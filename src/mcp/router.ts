@@ -35,22 +35,29 @@ export function createRouter({ upstream, catalog, configurationId, audit, provid
       ...(description === undefined ? {} : { toolDescription: description }), ...(params.arguments === undefined ? {} : { arguments: params.arguments }) }, config.sanitization);
     let providerEvaluation: ProviderEvaluation | undefined;
     let policyDecision: AuditEvent['policyDecision'] = { outcome: 'DENY', source: 'VALIDATION', reasonCodes: [validationStatus], policyLatencyMs: 0, configurationId };
+    const cancelBeforeDispatch = (): CallToolResult => {
+      policyDecision = { outcome: 'DENY', source: 'CANCELLATION', reasonCodes: ['CALL_CANCELLED'],
+        policyLatencyMs: policyDecision.policyLatencyMs, configurationId };
+      upstreamOutcome = { status: 'NOT_ATTEMPTED', reasonCode: 'CALL_CANCELLED' };
+      return gatewayError('ABORTED');
+    };
     try {
       if (!valid) return policyError(policyDecision, correlationId);
-      if (signal?.aborted) return gatewayError('ABORTED');
+      if (signal?.aborted) return cancelBeforeDispatch();
       const policyStarted = performance.now();
       let decision = evaluateBeforeProvider(config.policy, params.name, params.arguments, provider !== undefined);
       let policyLatencyMs = elapsed(policyStarted);
       if (!decision && provider) {
         providerEvaluation = await evaluateProvider(provider, sanitized, config.provider.timeoutMs, signal);
+        if (signal?.aborted) return cancelBeforeDispatch();
         const finishStarted = performance.now();
         decision = evaluatePolicy(config.policy, providerEvaluation);
         policyLatencyMs += elapsed(finishStarted);
       }
       if (!decision) throw new Error('Missing deterministic decision');
       policyDecision = { ...decision, policyLatencyMs, configurationId };
+      if (signal?.aborted) return cancelBeforeDispatch();
       if (policyDecision.outcome !== 'ALLOW') return policyError(policyDecision, correlationId);
-      if (signal?.aborted) return gatewayError('ABORTED');
       const upstreamStarted = performance.now();
       try {
         const result = await upstream.callTool(params, signal);
@@ -58,7 +65,7 @@ export function createRouter({ upstream, catalog, configurationId, audit, provid
         return result;
       } catch (error) {
         upstreamOutcome = { status: signal?.aborted ? 'ABORTED' : error instanceof ProtocolError ? 'PROTOCOL_ERROR' : 'TRANSPORT_ERROR', latencyMs: elapsed(upstreamStarted) };
-        return gatewayError('UPSTREAM_FAILURE');
+        return gatewayError(signal?.aborted ? 'ABORTED' : 'UPSTREAM_FAILURE');
       }
     } finally {
       // Only the sanitized copy crosses the audit boundary; results/errors remain ephemeral.

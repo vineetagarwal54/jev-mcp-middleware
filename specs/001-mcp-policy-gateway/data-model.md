@@ -142,7 +142,7 @@ equal to its review threshold.
 | Field | Type | Validation |
 |-------|------|------------|
 | `outcome` | `ALLOW`, `REVIEW`, or `DENY` | Exactly one final outcome. |
-| `source` | `HARD_RULE`, `SEMANTIC_THRESHOLDS`, `NO_PROVIDER`, `PROVIDER_FAILURE`, `VALIDATION` | Required. |
+| `source` | `HARD_RULE`, `SEMANTIC_THRESHOLDS`, `NO_PROVIDER`, `PROVIDER_FAILURE`, `VALIDATION`, `CANCELLATION` | Required. |
 | `reasonCodes` | non-empty string array | Values come from a closed, documented enum. |
 | `hardRuleId` | string or absent | Required when source is `HARD_RULE`. |
 | `failureBehavior` | outcome or absent | Required when source is `PROVIDER_FAILURE`. |
@@ -261,3 +261,5 @@ Every terminal path -> AUDIT_CREATED -> AUDIT_PERSISTED|AUDIT_PERSIST_FAILED
 No transition from `REVIEW`, `DENY`, or validation denial reaches
 `UPSTREAM_PENDING`. Audit persistence failure is emitted as a sanitized Pino
 operational error and never rewritten as successful persistence.
+Cancellation before dispatch records a cancellation-source `DENY` with upstream
+`NOT_ATTEMPTED`; it does not represent invalid arguments or provider failure.

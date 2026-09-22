@@ -110,7 +110,10 @@ Expected outcome: each command writes a versioned result under
 configuration ID, runtime, seed, outcome/forwarding accuracy, error counts, and
 p50/p95/p99 latency. Neither mode reads a TypeSafe credential or accesses the
 network. No-provider modes report no signal predictions: `signals: {}` and
-`macroF1: 0` are not-applicable placeholders, not model-quality scores. The
+`macroF1: 0` are not-applicable placeholders, not model-quality scores. In semantic
+modes, `semanticEvaluated` counts provider calls, `semanticSkipped` counts cases
+without one, `semanticPredicted` counts successful signals, and `providerErrors`
+counts failures. Macro F1 covers only successful predictions. The
 scripted-provider integration test checks metric calculations separately.
 
 ## 7. Run the Gateway Through an MCP Host

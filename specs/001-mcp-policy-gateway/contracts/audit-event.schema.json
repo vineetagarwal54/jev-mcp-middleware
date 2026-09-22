@@ -104,6 +104,7 @@
         "source": {
           "enum": [
             "VALIDATION",
+            "CANCELLATION",
             "HARD_RULE",
             "SEMANTIC_THRESHOLDS",
             "NO_PROVIDER",

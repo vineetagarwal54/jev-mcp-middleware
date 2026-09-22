@@ -6,6 +6,7 @@ import { ToolCatalog } from '../../src/mcp/toolCatalog.js';
 import { createRouter } from '../../src/mcp/router.js';
 import { createGatewayServer } from '../../src/mcp/gatewayServer.js';
 import type { AuditEvent } from '../../src/audit/AuditEvent.js';
+import { Server, type Tool } from '@modelcontextprotocol/server';
 
 it('proxies a fixed catalog and unchanged calls/results, rejects bad arguments, and captures upstream failures', async () => {
   const result = { content: [{ type: 'text' as const, text: 'unchanged' }], isError: false, _meta: { custom: 'retained' } };
@@ -39,4 +40,34 @@ it('proxies a fixed catalog and unchanged calls/results, rejects bad arguments, 
     expect(new Set(events.map(e => e.correlationId)).size).toBe(5);
     expect(JSON.stringify(events)).not.toMatch(/private-input|secret upstream diagnostic/);
   } finally { await host.close(); await gateway?.close(); await upstream.close(); await fake.server.close(); }
+});
+
+it('exposes every upstream tool page in order beyond the SDK aggregate limit', async () => {
+  const tools: Tool[] = Array.from({ length: 65 }, (_, index) => ({
+    ...fakeTools[0]!, name: `echo-${index}`,
+  }));
+  const cursors: Array<string | undefined> = [];
+  const fake = new Server({ name: 'paged-upstream', version: '1' }, { capabilities: { tools: {} } });
+  fake.setRequestHandler('tools/list', request => {
+    const cursor = request.params?.cursor;
+    cursors.push(cursor);
+    const index = cursor === undefined ? 0 : Number(cursor);
+    return { tools: [tools[index]!], ...(index + 1 < tools.length ? { nextCursor: String(index + 1) } : {}) };
+  });
+  fake.setRequestHandler('tools/call', () => ({ content: [{ type: 'text', text: 'ok' }] }));
+  const [upstreamTransport, fakeTransport] = InMemoryTransport.createLinkedPair();
+  const upstream = new UpstreamClient(2000);
+  const host = new Client({ name: 'paged-host', version: '1' });
+  let gateway: ReturnType<typeof createGatewayServer> | undefined;
+  try {
+    await fake.connect(fakeTransport);
+    await upstream.connect(upstreamTransport);
+    const catalog = new ToolCatalog(await upstream.listTools());
+    gateway = createGatewayServer(catalog, createRouter({ upstream, catalog, configurationId: 'a'.repeat(64), audit: () => {} }));
+    const [hostTransport, gatewayTransport] = InMemoryTransport.createLinkedPair();
+    await gateway.connect(gatewayTransport);
+    await host.connect(hostTransport);
+    expect((await host.listTools()).tools.map(tool => tool.name)).toEqual(tools.map(tool => tool.name));
+    expect(cursors).toEqual(tools.map((_, index) => index === 0 ? undefined : String(index)));
+  } finally { await host.close(); await gateway?.close(); await upstream.close(); await fake.close(); }
 });

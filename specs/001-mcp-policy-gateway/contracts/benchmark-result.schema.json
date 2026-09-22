@@ -52,11 +52,15 @@
     "counts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["total", "completed", "errors", "forwarded", "unexpectedForwarding"],
+      "required": ["total", "completed", "errors", "semanticEvaluated", "semanticSkipped", "semanticPredicted", "providerErrors", "forwarded", "unexpectedForwarding"],
       "properties": {
         "total": { "type": "integer", "minimum": 0 },
         "completed": { "type": "integer", "minimum": 0 },
         "errors": { "type": "integer", "minimum": 0 },
+        "semanticEvaluated": { "type": "integer", "minimum": 0 },
+        "semanticSkipped": { "type": "integer", "minimum": 0 },
+        "semanticPredicted": { "type": "integer", "minimum": 0 },
+        "providerErrors": { "type": "integer", "minimum": 0 },
         "forwarded": { "type": "integer", "minimum": 0 },
         "unexpectedForwarding": { "type": "integer", "minimum": 0 }
       }

@@ -68,10 +68,14 @@ export async function runBenchmark({ mode, dataset, config, provider }: { mode: 
   const signalNames = ['destructive', 'externalConsequence', 'sensitive', 'irreversible', 'highImpact', 'humanReview'] as const;
   const signals = classified.length ? Object.fromEntries(signalNames.map(key => [key,
     classificationMetrics(classified.map(c => c.expectedSignals[key]), classified.map(c => c.actualSignals[key] >= 0.5))])) : {};
+  const semanticEvaluated = caseResults.filter(c => c.providerLatencyMs !== undefined).length;
+  const providerErrors = caseResults.filter(c => c.errorCode !== undefined).length;
   return { schemaVersion: 1, runId: randomUUID(), datasetVersion: dataset.version, datasetHash: dataset.hash, configurationId: id, mode,
     ...(provider ? { provider: { id: provider.id } } : {}), runtime: { nodeVersion: process.version, platform: process.platform, architecture: process.arch },
     seed: config.benchmark?.seed ?? 1, startedAt, completedAt: new Date().toISOString(),
-    counts: { total: caseResults.length, completed: caseResults.length, errors: caseResults.filter(c => c.errorCode).length,
+    counts: { total: caseResults.length, completed: caseResults.length, errors: providerErrors,
+      semanticEvaluated, semanticSkipped: caseResults.length - semanticEvaluated,
+      semanticPredicted: classified.length, providerErrors,
       forwarded: forwards, unexpectedForwarding: caseResults.filter(c => c.forwarded && c.expectedOutcome !== 'ALLOW').length },
     quality: { policyAccuracy: caseResults.filter(c => c.actualOutcome === c.expectedOutcome).length / (caseResults.length || 1), macroF1: macroF1(signals), signals },
     latency: { providerMs: percentiles(caseResults.flatMap(c => c.providerLatencyMs === undefined ? [] : [c.providerLatencyMs])), decisionMs: percentiles(caseResults.map(c => c.decisionLatencyMs)) },

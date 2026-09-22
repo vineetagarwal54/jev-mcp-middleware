@@ -83,7 +83,9 @@ contain tool arguments, provider response text, configuration, or raw exceptions
 - Upstream protocol, transport, timeout, or abort failures return a sanitized
   `isError: true` result and are audited under the corresponding category.
 - Cancellation aborts pending provider/upstream work where possible, never retries
-  forwarding in the gateway, and still attempts sanitized audit creation.
+  forwarding in the gateway, and still attempts sanitized audit creation. A call
+  cancelled before dispatch records `CANCELLATION` / `CALL_CANCELLED` with an
+  upstream `NOT_ATTEMPTED` outcome; an aborted upstream attempt records `ABORTED`.
 - Audit persistence failure is written as a sanitized operational event to stderr.
   It does not rewrite an upstream result that has already occurred.
 

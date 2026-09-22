@@ -42,3 +42,18 @@ it('enforces a provider deadline even when an adapter never settles', async () =
     expect(h.fake.calls).toHaveLength(0);
   } finally { vi.useRealTimers(); await h.close(); }
 });
+
+it('records a pre-dispatch cancellation clearly and never forwards it', async () => {
+  const h = await gatewayHarness();
+  try {
+    const result = await h.route({ name: 'echo', arguments: { text: 'cancelled' } }, AbortSignal.abort());
+    expect(result).toMatchObject({ isError: true, content: [{ text: 'Call cancelled.' }] });
+    expect(h.events).toHaveLength(1);
+    expect(h.events[0]).toMatchObject({
+      validationStatus: 'VALID',
+      policyDecision: { outcome: 'DENY', source: 'CANCELLATION', reasonCodes: ['CALL_CANCELLED'] },
+      upstreamOutcome: { status: 'NOT_ATTEMPTED', reasonCode: 'CALL_CANCELLED' },
+    });
+    expect(h.fake.calls).toHaveLength(0);
+  } finally { await h.close(); }
+});

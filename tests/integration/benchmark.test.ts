@@ -26,7 +26,16 @@ it('compares keyless modes on one labelled corpus with actual forwarding and qua
   expect(semantic.latency.providerMs.p50).toBe(1);
   expect(semantic.caseResults.every(r => Number.isInteger(r.decisionLatencyMs))).toBe(true);
   expect(noGate.datasetHash).toBe(semantic.datasetHash);
+  const eligible = dataset.cases.filter(c => !c.toolName.endsWith('.delete'));
+  const partialProvider = new MockDecisionProvider(eligible.map((c, index) => index === 0
+    ? { provider: 'mock', status: 'TIMEOUT' as const, latencyMs: 1, reasonCode: 'PROVIDER_TIMEOUT' }
+    : { provider: 'mock', status: 'SUCCESS' as const, latencyMs: 1,
+      signals: Object.fromEntries(Object.entries(c.labels).map(([key, value]) => [key, value ? 1 : 0])) as RiskSignals }));
+  const partial = await runBenchmark({ mode: 'PROVIDER', dataset, config, provider: partialProvider });
+  expect(partial.counts).toMatchObject({ total: dataset.cases.length, semanticEvaluated: eligible.length,
+    semanticSkipped: dataset.cases.length - eligible.length, semanticPredicted: eligible.length - 1, providerErrors: 1 });
+  expect(partialProvider.calls).toHaveLength(eligible.length);
   const validate = new Ajv2020({ strict: false, validateFormats: false }).compile(JSON.parse(readFileSync('specs/001-mcp-policy-gateway/contracts/benchmark-result.schema.json', 'utf8')));
-  for (const report of [noGate, rules, semantic]) expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
+  for (const report of [noGate, rules, semantic, partial]) expect(validate(report), JSON.stringify(validate.errors)).toBe(true);
   await expect(runBenchmark({ mode: 'DETERMINISTIC_ONLY', dataset, config, provider })).rejects.toThrow('does not accept a provider');
 });

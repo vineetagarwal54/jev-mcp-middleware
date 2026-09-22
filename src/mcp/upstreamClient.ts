@@ -8,7 +8,23 @@ export class UpstreamClient {
     catch (error) { await this.client.close(); throw error; }
   }
   async listTools(): Promise<Tool[]> {
-    return (await this.client.listTools(undefined, { timeout: this.timeoutMs })).tools;
+    if (!this.client.getServerCapabilities()?.tools) return [];
+    const tools: Tool[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | null | undefined;
+    while (cursor !== null) {
+      const page = await this.client.request(
+        { method: 'tools/list', params: cursor === undefined ? {} : { cursor } },
+        { timeout: this.timeoutMs },
+      );
+      tools.push(...page.tools);
+      if (page.nextCursor !== undefined) {
+        if (seenCursors.has(page.nextCursor)) throw new Error('Repeated upstream tools/list cursor');
+        seenCursors.add(page.nextCursor);
+      }
+      cursor = page.nextCursor ?? null;
+    }
+    return tools;
   }
   callTool(params: CallToolRequestParams, signal?: AbortSignal): Promise<CallToolResult> {
     return this.client.callTool(params, { timeout: this.timeoutMs, ...(signal ? { signal } : {}) });

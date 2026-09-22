@@ -17,11 +17,12 @@ export async function gatewayHarness(options: { config?: GatewayConfig; provider
   await upstream.connect(a);
   const events: AuditEvent[] = [];
   const catalog = new ToolCatalog(await upstream.listTools());
-  const gateway = createGatewayServer(catalog, createRouter({ upstream, catalog, config, configurationId: 'a'.repeat(64),
-    ...(options.provider ? { provider: options.provider } : {}), audit: event => { events.push(event); options.audit?.(event); } }));
+  const route = createRouter({ upstream, catalog, config, configurationId: 'a'.repeat(64),
+    ...(options.provider ? { provider: options.provider } : {}), audit: event => { events.push(event); options.audit?.(event); } });
+  const gateway = createGatewayServer(catalog, route);
   const [c, d] = InMemoryTransport.createLinkedPair();
   await gateway.connect(d);
   const host = new Client({ name: 'test', version: '1' });
   await host.connect(c);
-  return { host, fake, events, close: async () => { await host.close(); await gateway.close(); await upstream.close(); await fake.server.close(); } };
+  return { host, fake, events, route, close: async () => { await host.close(); await gateway.close(); await upstream.close(); await fake.server.close(); } };
 }

@@ -155,7 +155,11 @@ uses `0.5`, separately from policy thresholds. Undefined precision/recall/F1 is
 reported as zero. Modes with no semantic predictions report `signals: {}` and
 `macroF1: 0` as **not applicable**, not as measured model quality. Failed/skipped
 provider cases have no signal prediction; inspect coverage and error counts before
-comparing scores. `unexpectedForwarding` means forwarding against the dataset's
+comparing scores. `counts.semanticEvaluated` is the number of provider calls,
+`semanticSkipped` is the number without a provider call, `semanticPredicted` counts
+successful signal sets, and `providerErrors` counts failed evaluations. Macro F1
+uses only cases with successful signal predictions, so compare it alongside these
+coverage counts. `unexpectedForwarding` means forwarding against the dataset's
 expected outcome, not forwarding a gateway DENY decision.
 
 Latency is measured in rounded milliseconds without pass/fail performance gates;

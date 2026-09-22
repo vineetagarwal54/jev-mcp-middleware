@@ -11,7 +11,7 @@ export interface AuditEvent {
   readonly providerEvaluation?: ProviderEvaluation;
   readonly policyDecision: {
     readonly outcome: 'ALLOW' | 'REVIEW' | 'DENY';
-    readonly source: 'VALIDATION' | 'HARD_RULE' | 'SEMANTIC_THRESHOLDS' | 'NO_PROVIDER' | 'PROVIDER_FAILURE';
+    readonly source: 'VALIDATION' | 'CANCELLATION' | 'HARD_RULE' | 'SEMANTIC_THRESHOLDS' | 'NO_PROVIDER' | 'PROVIDER_FAILURE';
     readonly reasonCodes: readonly string[];
     readonly policyLatencyMs: number;
     readonly configurationId: string;
